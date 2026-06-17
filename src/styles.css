@@ -667,7 +667,7 @@ main {
 .hub-last-action {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.72fr);
   gap: 10px;
   align-items: center;
   padding: 11px 13px;
@@ -675,13 +675,21 @@ main {
   background: rgba(14, 165, 233, 0.08);
 }
 
-.hub-last-action span {
+.hub-last-action > div:first-child {
+  min-width: 0;
+}
+
+.hub-last-action > div:first-child span,
+.hub-storage span {
+  display: block;
   color: #0b86c5;
   font-size: 12px;
   font-weight: 850;
 }
 
-.hub-last-action strong {
+.hub-last-action > div:first-child strong {
+  display: block;
+  margin-top: 3px;
   min-width: 0;
   overflow: hidden;
   color: #334155;
@@ -689,6 +697,59 @@ main {
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.hub-storage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.hub-storage.warning {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.hub-storage svg {
+  color: #0ea5e9;
+}
+
+.hub-storage.warning svg,
+.hub-storage.warning span {
+  color: #b45309;
+}
+
+.hub-storage small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-storage button {
+  min-height: 30px;
+  padding: 0 10px;
+  color: #075985;
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.hub-storage button:hover {
+  background: rgba(14, 165, 233, 0.1);
 }
 
 .experience-flow {
@@ -3891,8 +3952,18 @@ main {
     grid-template-columns: 1fr;
   }
 
-  .hub-last-action strong {
+  .hub-last-action > div:first-child strong,
+  .hub-storage small {
     white-space: normal;
+  }
+
+  .hub-storage {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .hub-storage button {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .experience-flow-head,

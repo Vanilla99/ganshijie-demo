@@ -165,6 +165,17 @@ type DemoState = {
 };
 
 type DemoStateUpdate = DemoState | ((state: DemoState) => DemoState);
+type StorageStatus = {
+  tone: "ready" | "warning";
+  label: string;
+  detail: string;
+  updatedAt: string;
+};
+
+type DemoStateBundle = {
+  demoState: DemoState;
+  storageStatus: StorageStatus;
+};
 
 function defaultMaterialChecklist() {
   return Object.fromEntries(materialItems.map((item, index) => [item, index < 3]));
@@ -216,26 +227,80 @@ function mergeDemoState(value: Partial<DemoState>): DemoState {
   };
 }
 
+function statusTime() {
+  return new Date().toLocaleTimeString("zh-CN", { hour12: false });
+}
+
+function storageStatus(label: string, detail: string, tone: StorageStatus["tone"] = "ready"): StorageStatus {
+  return { detail, label, tone, updatedAt: statusTime() };
+}
+
+function loadInitialDemoState(): DemoStateBundle {
+  if (typeof window === "undefined") {
+    return {
+      demoState: createDefaultDemoState(),
+      storageStatus: storageStatus("内存演示", "服务端渲染环境使用默认样例状态。", "warning")
+    };
+  }
+
+  try {
+    const saved = window.localStorage.getItem(demoStorageKey);
+    return saved
+      ? {
+          demoState: mergeDemoState(JSON.parse(saved) as Partial<DemoState>),
+          storageStatus: storageStatus("状态已恢复", "已从本机缓存载入上次演示配置。")
+        }
+      : {
+          demoState: createDefaultDemoState(),
+          storageStatus: storageStatus("默认样例", "已载入默认演示配置，后续操作会自动保存。")
+        };
+  } catch {
+    return {
+      demoState: createDefaultDemoState(),
+      storageStatus: storageStatus("临时状态", "浏览器阻止读取本地缓存，本次演示使用默认样例。", "warning")
+    };
+  }
+}
+
 function usePersistentDemoState() {
-  const [demoState, setDemoState] = useState<DemoState>(() => {
-    if (typeof window === "undefined") return createDefaultDemoState();
-    try {
-      const saved = window.localStorage.getItem(demoStorageKey);
-      return saved ? mergeDemoState(JSON.parse(saved) as Partial<DemoState>) : createDefaultDemoState();
-    } catch {
-      return createDefaultDemoState();
-    }
-  });
+  const [bundle, setBundle] = useState<DemoStateBundle>(loadInitialDemoState);
 
   useEffect(() => {
-    window.localStorage.setItem(demoStorageKey, JSON.stringify(demoState));
-  }, [demoState]);
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(demoStorageKey, JSON.stringify(bundle.demoState));
+      setBundle((current) =>
+        current.demoState === bundle.demoState
+          ? { ...current, storageStatus: storageStatus("状态已保存", "演示配置已写入本机缓存。") }
+          : current
+      );
+    } catch {
+      setBundle((current) =>
+        current.demoState === bundle.demoState
+          ? {
+              ...current,
+              storageStatus: storageStatus("临时状态", "浏览器阻止写入本地缓存，本次操作仅在当前会话保留。", "warning")
+            }
+          : current
+      );
+    }
+  }, [bundle.demoState]);
 
   const updateDemoState = useCallback((update: DemoStateUpdate) => {
-    setDemoState((current) => (typeof update === "function" ? update(current) : update));
+    setBundle((current) => ({
+      ...current,
+      demoState: typeof update === "function" ? update(current.demoState) : update
+    }));
   }, []);
 
-  return [demoState, updateDemoState] as const;
+  const resetDemoState = useCallback(() => {
+    setBundle({
+      demoState: { ...createDefaultDemoState(), lastAction: "已恢复默认演示状态。" },
+      storageStatus: storageStatus("已恢复默认", "所有演示状态已回到样例配置。")
+    });
+  }, []);
+
+  return [bundle.demoState, updateDemoState, bundle.storageStatus, resetDemoState] as const;
 }
 
 type RouteState = {
@@ -424,13 +489,17 @@ function CaseOverviewBand({ selectedCase, mode = "analysis" }: { selectedCase: C
 function DemoStatusHub({
   currentPath,
   demoState,
+  onDemoStateReset,
   onDemoStateChange,
-  selectedCase
+  selectedCase,
+  storageStatus
 }: {
   currentPath: string;
   demoState: DemoState;
+  onDemoStateReset: () => void;
   onDemoStateChange: (update: DemoStateUpdate) => void;
   selectedCase: ClinicalCase;
+  storageStatus: StorageStatus;
 }) {
   const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
   const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
@@ -505,8 +574,20 @@ function DemoStatusHub({
       </div>
 
       <div className="hub-last-action">
-        <span>最近动作</span>
-        <strong>{demoState.lastAction || "等待演示操作同步"}</strong>
+        <div>
+          <span>最近动作</span>
+          <strong>{demoState.lastAction || "等待演示操作同步"}</strong>
+        </div>
+        <div className={`hub-storage ${storageStatus.tone}`}>
+          <Database size={15} />
+          <div>
+            <span>{storageStatus.label}</span>
+            <small>{storageStatus.detail} · {storageStatus.updatedAt}</small>
+          </div>
+          <button type="button" onClick={onDemoStateReset}>
+            恢复默认
+          </button>
+        </div>
       </div>
     </section>
   );
@@ -2269,7 +2350,7 @@ function NotFoundPage() {
 
 function App() {
   const route = useHashRoute();
-  const [demoState, onDemoStateChange] = usePersistentDemoState();
+  const [demoState, onDemoStateChange, storageStatus, resetDemoState] = usePersistentDemoState();
   const currentPath = route.path;
   const selectedCase = useMemo(() => {
     const caseId = route.params.get("case") || demoState.activeCaseId;
@@ -2311,7 +2392,14 @@ function App() {
       <TopNav currentPath={currentPath} />
       <main>
         {showDemoStatusHub ? (
-          <DemoStatusHub currentPath={currentPath} demoState={demoState} onDemoStateChange={onDemoStateChange} selectedCase={selectedCase} />
+          <DemoStatusHub
+            currentPath={currentPath}
+            demoState={demoState}
+            onDemoStateChange={onDemoStateChange}
+            onDemoStateReset={resetDemoState}
+            selectedCase={selectedCase}
+            storageStatus={storageStatus}
+          />
         ) : null}
         {page}
       </main>
