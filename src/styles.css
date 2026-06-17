@@ -792,6 +792,7 @@ main {
 
 .chart-panel,
 .case-workbench,
+.report-workbench,
 .table-section,
 .process-panel,
 .upload-panel,
@@ -840,7 +841,8 @@ main {
   padding: 24px;
 }
 
-.case-workbench {
+.case-workbench,
+.report-workbench {
   display: grid;
   gap: 18px;
   margin: 18px 0;
@@ -1023,8 +1025,8 @@ main {
 }
 
 .reports-table .table-row {
-  grid-template-columns: 1.35fr 1.35fr 0.6fr 1.1fr 0.8fr 0.72fr 1fr;
-  min-width: 980px;
+  grid-template-columns: 1.25fr 1.35fr 0.58fr 1.05fr 0.8fr 0.72fr 1.18fr;
+  min-width: 1040px;
 }
 
 .table-row:last-child {
@@ -2160,7 +2162,7 @@ main {
 
 .report-template-options {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -2203,6 +2205,63 @@ main {
   min-height: 118px;
   resize: vertical;
   line-height: 1.65;
+}
+
+.export-history,
+.report-workbench-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.export-history {
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.export-history > div strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.export-history > span {
+  display: block;
+  padding: 10px 12px;
+  color: #475569;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  line-height: 1.45;
+}
+
+.report-workbench-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.report-workbench-summary article {
+  min-width: 0;
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.74);
+}
+
+.report-workbench-summary span,
+.report-workbench-summary small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.report-workbench-summary strong {
+  display: block;
+  margin: 11px 0 7px;
+  font-size: 24px;
+  line-height: 1.1;
 }
 
 .report-sheet {
@@ -2336,6 +2395,35 @@ main {
   right: 18px;
 }
 
+.preview-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.preview-meta-grid div {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.preview-meta-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.preview-meta-grid strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
 .preview-body {
   display: grid;
   grid-template-columns: 0.95fr 1.05fr;
@@ -2352,6 +2440,27 @@ main {
 .preview-body p {
   color: var(--muted);
   line-height: 1.8;
+}
+
+.preview-note {
+  display: grid;
+  gap: 7px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: 16px;
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.preview-note span {
+  color: #0b86c5;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.preview-note strong {
+  color: #0f172a;
+  line-height: 1.55;
 }
 
 .partner-signal-band {
@@ -3288,6 +3397,7 @@ main {
   .model-preset-grid,
   .report-review-grid,
   .report-signoff-flow,
+  .report-workbench-summary,
   .report-template-options,
   .pilot-option-grid,
   .pilot-case-package > div:last-child {
@@ -3382,6 +3492,7 @@ main {
   .pilot-kpi-row,
   .workbench-controls,
   .workbench-signal-grid,
+  .report-workbench-summary,
   .workstation-status-grid,
   .pipeline-status-grid,
   .model-preset-grid,
@@ -3391,6 +3502,7 @@ main {
   .pilot-stepper,
   .pilot-option-grid,
   .pilot-case-package > div:last-child,
+  .preview-meta-grid,
   .quant-grid,
   .capability-grid,
   .pain-grid,
@@ -3449,6 +3561,7 @@ main {
   .workstation-status-grid article,
   .pipeline-status-grid article,
   .workbench-signal-grid article,
+  .report-workbench-summary article,
   .report-review-grid article {
     min-height: auto;
   }
@@ -3541,6 +3654,7 @@ main {
   .partner-signal-grid article,
   .pilot-journey article,
   .case-workbench,
+  .report-workbench,
   .pilot-aside,
   .pilot-form,
   .chart-panel,

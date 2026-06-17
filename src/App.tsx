@@ -128,6 +128,8 @@ const casePackageOptions = [
 const materialItems = ["脱敏 DICOM 样例", "试点科室联系人", "报告模板偏好", "数据权限确认", "演示会议时间"];
 const reportTemplates = ["术前规划版", "MDT 讨论版", "科研教学版"];
 const reviewTones = ["医生复核", "MDT 建议", "教学标注"];
+const reportStatusFilters = ["全部报告", "已确认", "待复核", "已归档", "生成中"];
+const exportFormats = ["PDF 报告", "PNG 截图", "MDT 摘要"];
 
 type DemoState = {
   activeCaseId: string;
@@ -141,9 +143,13 @@ type DemoState = {
   casePackage: string;
   materialChecklist: Record<string, boolean>;
   pilotSubmittedAt: string;
+  reportSearch: string;
+  reportStatusFilter: string;
   reportTemplate: string;
   reviewTone: string;
   reviewNotes: Record<string, string>;
+  exportFormat: string;
+  exportHistory: string[];
   lastAction: string;
 };
 
@@ -166,9 +172,13 @@ function createDefaultDemoState(): DemoState {
     casePackage: casePackageOptions[0].label,
     materialChecklist: defaultMaterialChecklist(),
     pilotSubmittedAt: "",
+    reportSearch: "",
+    reportStatusFilter: "全部报告",
     reportTemplate: reportTemplates[0],
     reviewTone: reviewTones[0],
     reviewNotes: {},
+    exportFormat: exportFormats[0],
+    exportHistory: [],
     lastAction: "已载入默认试点沙盒配置。"
   };
 }
@@ -179,6 +189,7 @@ function mergeDemoState(value: Partial<DemoState>): DemoState {
     ...fallback,
     ...value,
     selectedPilotCaseIds: Array.isArray(value.selectedPilotCaseIds) && value.selectedPilotCaseIds.length ? value.selectedPilotCaseIds : fallback.selectedPilotCaseIds,
+    exportHistory: Array.isArray(value.exportHistory) ? value.exportHistory : fallback.exportHistory,
     materialChecklist: { ...fallback.materialChecklist, ...(value.materialChecklist || {}) },
     reviewNotes: { ...fallback.reviewNotes, ...(value.reviewNotes || {}) }
   };
@@ -1123,17 +1134,41 @@ function ReportsPage({
   const [regenerating, setRegenerating] = useState(false);
   const [exportNotice, setExportNotice] = useState(generated ? "已从影像中心生成该病例的辅助报告草稿。" : "");
   const reviewNote = demoState.reviewNotes[selectedCase.id] || "";
+  const filteredReports = useMemo(() => {
+    const search = demoState.reportSearch.trim().toLowerCase();
+    return reportList.filter((report) => {
+      const reportCase = cases.find((item) => item.id === report.caseId);
+      const matchesSearch = search
+        ? [report.id, report.name, report.patient, report.status, report.risk, reportCase?.hospital, reportCase?.lesion].join(" ").toLowerCase().includes(search)
+        : true;
+      const matchesStatus = demoState.reportStatusFilter === "全部报告" || report.status === demoState.reportStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [demoState.reportSearch, demoState.reportStatusFilter]);
+
+  const selectedReportCaseIds = new Set(filteredReports.map((report) => report.caseId));
+  const reviewNoteCount = Object.values(demoState.reviewNotes).filter((value) => value.trim()).length;
 
   useEffect(() => {
     setExportNotice(generated ? "已从影像中心生成该病例的辅助报告草稿。" : "");
   }, [generated, selectedCase]);
+
+  const handleExport = (message: string) => {
+    const stamped = `${new Date().toLocaleTimeString("zh-CN", { hour12: false })} · ${message}`;
+    setExportNotice(message);
+    onDemoStateChange((state) => ({
+      ...state,
+      exportHistory: [stamped, ...state.exportHistory].slice(0, 5),
+      lastAction: message
+    }));
+  };
 
   const regenerate = () => {
     setRegenerating(true);
     setExportNotice("");
     window.setTimeout(() => {
       setRegenerating(false);
-      setExportNotice(`${selectedCase.reportId} 已重新生成。`);
+      handleExport(`${selectedCase.reportId} 已按${demoState.reportTemplate}重新生成。`);
     }, 1100);
   };
 
@@ -1141,7 +1176,7 @@ function ReportsPage({
     { label: "关键测量", value: selectedCase.measurements[0]?.value || "-", detail: selectedCase.measurements[0]?.detail || "等待测量" },
     { label: "血管邻近", value: selectedCase.measurements[1]?.value || "-", detail: selectedCase.measurements[1]?.detail || "等待复核" },
     { label: "复核建议", value: selectedCase.risk.includes("高") || selectedCase.risk.includes("复核") ? "建议 MDT" : "常规复核", detail: selectedCase.reportStatus },
-    { label: "输出格式", value: "PDF / PNG", detail: "支持模拟下载与图片导出" }
+    { label: "输出格式", value: demoState.exportFormat, detail: `${demoState.reportTemplate} · ${demoState.reviewTone}` }
   ];
 
   return (
@@ -1283,6 +1318,21 @@ function ReportsPage({
               ))}
             </div>
           </div>
+          <div>
+            <strong>导出格式</strong>
+            <div>
+              {exportFormats.map((format) => (
+                <button
+                  className={demoState.exportFormat === format ? "active" : ""}
+                  key={format}
+                  type="button"
+                  onClick={() => onDemoStateChange((state) => ({ ...state, exportFormat: format, lastAction: `导出格式已切换为${format}。` }))}
+                >
+                  {format}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <label className="review-note-box">
           <span>医生复核意见</span>
@@ -1298,6 +1348,17 @@ function ReportsPage({
             placeholder="例如：建议补充动脉期原始序列，MDT 会前重点复核血管邻近区域。"
           />
         </label>
+        <div className="export-history">
+          <div>
+            <span className="eyebrow">Export Trail</span>
+            <strong>导出记录</strong>
+          </div>
+          {demoState.exportHistory.length ? (
+            demoState.exportHistory.map((item) => <span key={item}>{item}</span>)
+          ) : (
+            <span>尚未导出，本次演示的导出动作会在这里留痕。</span>
+          )}
+        </div>
       </section>
 
       <section className="report-sheet">
@@ -1354,17 +1415,61 @@ function ReportsPage({
         </motion.div>
       ) : null}
 
-      <section className="table-section">
-        <div className="panel-heading">
+      <section className="report-workbench">
+        <div className="workbench-head">
           <div>
-            <span className="eyebrow">Reports</span>
-            <h3>报告列表</h3>
+            <span className="eyebrow">Report Workbench</span>
+            <h3>跨病例报告工作台</h3>
+            <p>筛选报告状态、回看病例上下文，并按当前模板导出报告材料。</p>
           </div>
           <button className="secondary-button icon-text" type="button" onClick={regenerate}>
             <RefreshCw className={regenerating ? "spin" : ""} size={16} />
             {regenerating ? "重新生成中" : "重新生成"}
           </button>
         </div>
+
+        <div className="workbench-controls">
+          <label>
+            <span>检索报告</span>
+            <input
+              value={demoState.reportSearch}
+              onChange={(event) => onDemoStateChange((state) => ({ ...state, reportSearch: event.target.value }))}
+              placeholder="报告编号 / 患者 / 医院 / 病灶"
+            />
+          </label>
+          <label>
+            <span>报告状态</span>
+            <select value={demoState.reportStatusFilter} onChange={(event) => onDemoStateChange((state) => ({ ...state, reportStatusFilter: event.target.value }))}>
+              {reportStatusFilters.map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>导出格式</span>
+            <select value={demoState.exportFormat} onChange={(event) => onDemoStateChange((state) => ({ ...state, exportFormat: event.target.value }))}>
+              {exportFormats.map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="report-workbench-summary">
+          {[
+            { label: "当前报告", value: `${filteredReports.length} 份`, detail: "筛选后的报告数量" },
+            { label: "覆盖病例", value: `${selectedReportCaseIds.size} 例`, detail: "可回跳影像分析" },
+            { label: "复核意见", value: `${reviewNoteCount} 条`, detail: "已保存到沙盒状态" },
+            { label: "导出格式", value: demoState.exportFormat, detail: demoState.reportTemplate }
+          ].map((item) => (
+            <article key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.detail}</small>
+            </article>
+          ))}
+        </div>
+
         <div className="data-table reports-table">
           <div className="table-row table-head">
             <span>报告编号</span>
@@ -1375,36 +1480,53 @@ function ReportsPage({
             <span>状态</span>
             <span>操作</span>
           </div>
-          {reportList.map((report) => (
-            <div className="table-row" key={report.id}>
-              <span>{report.id}</span>
-              <span>{report.name}</span>
-              <span>{report.patient}</span>
-              <span>{report.generatedAt}</span>
-              <span>
-                <RiskBadge risk={report.risk} />
-              </span>
-              <span>{report.status}</span>
-              <span className="row-actions">
-                <a href={caseHref("/reports", cases.find((item) => item.id === report.caseId) || selectedCase)}>
-                  预览
-                </a>
-                <button type="button" onClick={() => setExportNotice(`${report.id} 已模拟下载 PDF。`)}>
-                  <Download size={14} />
-                </button>
-                <button type="button" onClick={() => setExportNotice(`${report.id} 已模拟导出图片。`)}>
-                  <FileDown size={14} />
-                </button>
-              </span>
+          {filteredReports.length ? (
+            filteredReports.map((report) => {
+              const reportCase = cases.find((item) => item.id === report.caseId) || selectedCase;
+              const hasNote = Boolean(demoState.reviewNotes[report.caseId]?.trim());
+              return (
+                <div className="table-row" key={report.id}>
+                  <span>{report.id}</span>
+                  <span>{report.name}</span>
+                  <span>{report.patient}</span>
+                  <span>{report.generatedAt}</span>
+                  <span>
+                    <RiskBadge risk={report.risk} />
+                  </span>
+                  <span>{hasNote ? "已复核" : report.status}</span>
+                  <span className="row-actions">
+                    <a href={caseHref("/reports", reportCase)} onClick={() => onDemoStateChange((state) => ({ ...state, activeCaseId: reportCase.id }))}>
+                      预览
+                    </a>
+                    <a href={caseHref("/imaging", reportCase)} onClick={() => onDemoStateChange((state) => ({ ...state, activeCaseId: reportCase.id }))}>
+                      影像
+                    </a>
+                    <button type="button" onClick={() => handleExport(`${report.id} 已模拟导出${demoState.exportFormat}。`)}>
+                      <Download size={14} />
+                    </button>
+                    <button type="button" onClick={() => handleExport(`${report.id} 已加入 MDT 会前材料包。`)}>
+                      <FileDown size={14} />
+                    </button>
+                  </span>
+                </div>
+              );
+            })
+          ) : (
+            <div className="empty-state">
+              <FileText size={28} />
+              <strong>没有匹配报告</strong>
+              <span>调整报告编号、患者、医院或状态筛选后继续查看。</span>
             </div>
-          ))}
+          )}
         </div>
       </section>
 
       {previewOpen ? (
         <ReportPreview
+          demoState={demoState}
+          reviewNote={reviewNote}
           selectedCase={selectedCase}
-          onExport={(message) => setExportNotice(message)}
+          onExport={handleExport}
           onClose={() => setPreviewOpen(false)}
         />
       ) : null}
@@ -1413,10 +1535,14 @@ function ReportsPage({
 }
 
 function ReportPreview({
+  demoState,
+  reviewNote,
   selectedCase,
   onExport,
   onClose
 }: {
+  demoState: DemoState;
+  reviewNote: string;
   selectedCase: ClinicalCase;
   onExport: (message: string) => void;
   onClose: () => void;
@@ -1434,17 +1560,34 @@ function ReportPreview({
         </button>
         <span className="eyebrow">Report Preview</span>
         <h2>{selectedCase.reportName}</h2>
+        <div className="preview-meta-grid">
+          {[
+            { label: "模板", value: demoState.reportTemplate },
+            { label: "复核语气", value: demoState.reviewTone },
+            { label: "导出格式", value: demoState.exportFormat },
+            { label: "病例", value: selectedCase.id }
+          ].map((item) => (
+            <div key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
         <div className="preview-body">
           <img src={selectedCase.snapshot} alt={`${selectedCase.id} 模型报告插图`} />
           <div>
             <h3>AI 辅助结论</h3>
             <p>{selectedCase.aiSummary}</p>
+            <div className="preview-note">
+              <span>医生复核意见</span>
+              <strong>{reviewNote.trim() || "待医生填写复核意见"}</strong>
+            </div>
             <div className="preview-actions">
-              <button className="primary-button" type="button" onClick={() => onExport(`${selectedCase.reportId} 已模拟下载 PDF。`)}>
-                下载 PDF
+              <button className="primary-button" type="button" onClick={() => onExport(`${selectedCase.reportId} 已模拟导出${demoState.exportFormat}。`)}>
+                导出当前格式
               </button>
-              <button className="secondary-button" type="button" onClick={() => onExport(`${selectedCase.reportId} 已模拟导出图片。`)}>
-                导出图片
+              <button className="secondary-button" type="button" onClick={() => onExport(`${selectedCase.reportId} 已加入 MDT 会前材料包。`)}>
+                加入 MDT 包
               </button>
             </div>
           </div>
