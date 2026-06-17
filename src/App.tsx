@@ -88,6 +88,21 @@ const pilotAssurances = [
   "可按医院角色配置影像、报告与会诊视图"
 ];
 
+const experienceFlow = [
+  { path: "/", title: "产品入口", detail: "理解平台价值" },
+  { path: "/dashboard", title: "病例总览", detail: "选择重点病例" },
+  { path: "/imaging", title: "AI 影像分析", detail: "分割与三维重建" },
+  { path: "/reports", title: "辅助报告", detail: "结构化复核" },
+  { path: "/partners", title: "合作背书", detail: "临床与教学场景" },
+  { path: "/pilot", title: "试点申请", detail: "落地沟通路径" }
+];
+
+const partnerSignals = [
+  { label: "合作医院", value: `${hospitals.length} 家`, detail: "真实临床场景素材" },
+  { label: "专家顾问", value: `${expertProfiles.length} 位`, detail: "医学与科研支持" },
+  { label: "证明材料", value: `${proofImages.length} 份`, detail: "可打开查看原图" }
+];
+
 type RouteState = {
   path: string;
   params: URLSearchParams;
@@ -124,6 +139,12 @@ function caseHref(path: "/imaging" | "/reports", item: ClinicalCase = featuredCa
 
 function metricValue(item: ClinicalCase, label: string) {
   return item.metrics.find((metric) => metric.label === label)?.value || "-";
+}
+
+function flowHref(path: string, selectedCase: ClinicalCase = featuredCase) {
+  if (path === "/imaging") return caseHref("/imaging", selectedCase);
+  if (path === "/reports") return caseHref("/reports", selectedCase, "generated=1");
+  return hashFor(path);
 }
 
 function TopNav({ currentPath }: { currentPath: string }) {
@@ -208,6 +229,63 @@ function SectionTitle({ eyebrow, title, body }: { eyebrow: string; title: string
   );
 }
 
+function ExperienceFlow({ activePath, selectedCase = featuredCase }: { activePath: string; selectedCase?: ClinicalCase }) {
+  return (
+    <section className="experience-flow" aria-label="肝视界 Demo 演示链路">
+      <div className="experience-flow-head">
+        <span className="eyebrow">Demo Journey</span>
+        <h2>一条链路跑完整个平台</h2>
+      </div>
+      <div className="experience-flow-rail">
+        {experienceFlow.map((item, index) => (
+          <a className={activePath === item.path ? "active" : ""} href={flowHref(item.path, selectedCase)} key={item.path}>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <strong>{item.title}</strong>
+            <small>{item.detail}</small>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CaseOverviewBand({ selectedCase, mode = "analysis" }: { selectedCase: ClinicalCase; mode?: "analysis" | "report" }) {
+  const overviewMetrics = ["肝脏体积", "肿瘤最大直径", "血管邻近情况", "分割置信度"];
+
+  return (
+    <section className="case-overview-band">
+      <a className="case-overview-visual" href={caseHref("/imaging", selectedCase)}>
+        <img src={selectedCase.snapshot} alt={`${selectedCase.id} 当前病例快照`} />
+        <span>{mode === "report" ? "Report Source" : "Active Case"}</span>
+      </a>
+      <div className="case-overview-copy">
+        <span className="eyebrow">{mode === "report" ? "Report Context" : "Clinical Context"}</span>
+        <h2>{selectedCase.id} · {selectedCase.lesion}</h2>
+        <p>
+          {selectedCase.patient} / {selectedCase.sex} / {selectedCase.age} 岁 · {selectedCase.hospital} · {selectedCase.department}
+        </p>
+      </div>
+      <div className="case-overview-metrics">
+        {overviewMetrics.map((label) => (
+          <article key={label}>
+            <span>{label}</span>
+            <strong>{metricValue(selectedCase, label)}</strong>
+          </article>
+        ))}
+      </div>
+      <div className="case-overview-actions">
+        <RiskBadge risk={selectedCase.risk} />
+        <a className="secondary-button" href={caseHref("/imaging", selectedCase)}>
+          影像分析
+        </a>
+        <a className="primary-button" href={caseHref("/reports", selectedCase, "generated=1")}>
+          报告预览
+        </a>
+      </div>
+    </section>
+  );
+}
+
 function HomePage() {
   const confidence = metricValue(featuredCase, "分割置信度");
   const capabilityCards = [
@@ -265,6 +343,8 @@ function HomePage() {
           </div>
         </motion.div>
       </section>
+
+      <ExperienceFlow activePath="/" />
 
       <section className="pain-section">
         <SectionTitle
@@ -324,6 +404,8 @@ function DashboardPage() {
           </a>
         }
       />
+
+      <ExperienceFlow activePath="/dashboard" />
 
       <section className="stats-grid">
         {metrics.map((metric) => (
@@ -613,6 +695,9 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
         }
       />
 
+      <ExperienceFlow activePath="/imaging" selectedCase={selectedCase} />
+      <CaseOverviewBand selectedCase={selectedCase} />
+
       <section className="imaging-grid">
         <CaseSidePanel
           selectedCase={selectedCase}
@@ -755,6 +840,9 @@ function ReportsPage({ selectedCase, generated }: { selectedCase: ClinicalCase; 
           </button>
         }
       />
+
+      <ExperienceFlow activePath="/reports" selectedCase={selectedCase} />
+      <CaseOverviewBand selectedCase={selectedCase} mode="report" />
 
       <section className="report-hero">
         <article className="analysis-card">
@@ -974,6 +1062,24 @@ function PartnersPage() {
         body="展示合作医院、医学顾问、指导老师与合作证明，让 Demo 不只是界面演示，也有真实临床协作背景。"
       />
 
+      <ExperienceFlow activePath="/partners" />
+
+      <section className="partner-signal-band">
+        <div>
+          <span className="eyebrow">Clinical Trust</span>
+          <h2>让演示从视觉样机变成可讨论的临床协作方案</h2>
+        </div>
+        <div className="partner-signal-grid">
+          {partnerSignals.map((item) => (
+            <article key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.detail}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="hospital-grid">
         {hospitals.map((hospital) => (
           <article className="hospital-card" key={hospital.name}>
@@ -1116,6 +1222,8 @@ function PilotPage() {
           </div>
         </motion.div>
       </section>
+
+      <ExperienceFlow activePath="/pilot" />
 
       <section className="pilot-journey" aria-label="试点闭环路径">
         {pilotJourney.map(({ icon: Icon, ...item }) => (

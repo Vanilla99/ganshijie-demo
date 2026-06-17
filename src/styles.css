@@ -526,6 +526,220 @@ main {
   opacity: 0.48;
 }
 
+.experience-flow {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.07);
+  backdrop-filter: blur(20px);
+}
+
+.experience-flow-head {
+  display: grid;
+  align-content: center;
+  min-height: 118px;
+  padding: 18px;
+  color: white;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(14, 165, 233, 0.28), transparent 44%),
+    linear-gradient(145deg, #07111f, #102341 62%, #123f3a);
+}
+
+.experience-flow-head .eyebrow {
+  color: #7dd3fc;
+}
+
+.experience-flow-head h2 {
+  margin: 10px 0 0;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.08;
+}
+
+.experience-flow-rail {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.experience-flow-rail a {
+  position: relative;
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  min-height: 118px;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.72);
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.experience-flow-rail a::after {
+  position: absolute;
+  inset: auto 14px 12px 14px;
+  height: 3px;
+  border-radius: 999px;
+  content: "";
+  background: rgba(148, 163, 184, 0.24);
+}
+
+.experience-flow-rail a:hover {
+  transform: translateY(-2px);
+  border-color: rgba(14, 165, 233, 0.28);
+  background: white;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+}
+
+.experience-flow-rail a.active {
+  color: white;
+  border-color: rgba(125, 211, 252, 0.34);
+  background:
+    radial-gradient(circle at 85% 20%, rgba(94, 234, 212, 0.28), transparent 8rem),
+    linear-gradient(145deg, #07111f, #12333c);
+  box-shadow: 0 18px 48px rgba(8, 17, 31, 0.18);
+}
+
+.experience-flow-rail a.active::after {
+  background: linear-gradient(90deg, #0ea5e9, #14b8a6);
+}
+
+.experience-flow-rail span {
+  color: #0b86c5;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.experience-flow-rail a.active span {
+  color: #7dd3fc;
+}
+
+.experience-flow-rail strong,
+.experience-flow-rail small {
+  display: block;
+}
+
+.experience-flow-rail strong {
+  margin-top: 10px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.experience-flow-rail small {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.experience-flow-rail a.active small {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.case-overview-band {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.32fr) minmax(0, 0.72fr) minmax(360px, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(20px);
+}
+
+.case-overview-visual {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #08111f;
+}
+
+.case-overview-visual img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  opacity: 0.76;
+}
+
+.case-overview-visual span {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  padding: 6px 9px;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(5, 12, 25, 0.48);
+  font-size: 11px;
+  font-weight: 850;
+  backdrop-filter: blur(10px);
+}
+
+.case-overview-copy {
+  min-width: 0;
+}
+
+.case-overview-copy h2 {
+  margin: 8px 0 0;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.08;
+}
+
+.case-overview-copy p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.case-overview-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.case-overview-metrics article {
+  min-width: 0;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.74);
+}
+
+.case-overview-metrics span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.case-overview-metrics strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.case-overview-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
 .stats-grid {
   grid-template-columns: repeat(6, 1fr);
   margin-bottom: 18px;
@@ -1551,6 +1765,64 @@ main {
   line-height: 1.8;
 }
 
+.partner-signal-band {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(420px, 1.14fr);
+  gap: 18px;
+  align-items: stretch;
+  margin: 0 0 18px;
+  padding: clamp(24px, 4vw, 38px);
+  color: white;
+  border-radius: 32px;
+  background:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.2), transparent 34%),
+    linear-gradient(145deg, #07111f, #102341 58%, #123f3a);
+  box-shadow: 0 30px 90px rgba(8, 17, 31, 0.22);
+}
+
+.partner-signal-band .eyebrow {
+  color: #7dd3fc;
+}
+
+.partner-signal-band h2 {
+  max-width: 680px;
+  margin: 10px 0 0;
+  font-size: clamp(30px, 4vw, 52px);
+  line-height: 1.06;
+}
+
+.partner-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-content: end;
+}
+
+.partner-signal-grid article {
+  min-width: 0;
+  min-height: 142px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+.partner-signal-grid span,
+.partner-signal-grid small {
+  display: block;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.partner-signal-grid strong {
+  display: block;
+  margin: 14px 0 8px;
+  font-size: clamp(28px, 3.5vw, 42px);
+  line-height: 1;
+}
+
 .hospital-grid {
   grid-template-columns: repeat(3, 1fr);
 }
@@ -2223,6 +2495,9 @@ main {
 
   .home-hero,
   .pilot-hero,
+  .experience-flow,
+  .case-overview-band,
+  .partner-signal-band,
   .page-header,
   .scenario-band,
   .imaging-grid,
@@ -2237,6 +2512,20 @@ main {
   .pilot-hero {
     min-height: auto;
     padding-top: 58px;
+  }
+
+  .experience-flow-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .case-overview-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .case-overview-actions {
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+    justify-items: start;
   }
 
   .hero-visual {
@@ -2259,6 +2548,10 @@ main {
   .expert-grid,
   .proof-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .partner-signal-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2327,6 +2620,49 @@ main {
     grid-template-columns: 1fr;
   }
 
+  .experience-flow {
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .experience-flow-head,
+  .experience-flow-rail a {
+    min-height: 104px;
+  }
+
+  .experience-flow-rail {
+    grid-template-columns: repeat(6, 158px);
+    overflow-x: auto;
+    padding-bottom: 3px;
+    scroll-snap-type: x proximity;
+  }
+
+  .experience-flow-rail a {
+    scroll-snap-align: start;
+  }
+
+  .case-overview-band {
+    padding: 12px;
+  }
+
+  .case-overview-visual img {
+    aspect-ratio: 16 / 9;
+  }
+
+  .case-overview-actions {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .case-overview-actions .primary-button,
+  .case-overview-actions .secondary-button {
+    width: 100%;
+  }
+
+  .partner-signal-grid {
+    grid-template-columns: 1fr;
+  }
+
   .chart-panel.wide {
     grid-column: span 1;
   }
@@ -2388,6 +2724,13 @@ main {
   .report-visual,
   .ai-summary,
   .pilot-hero-visual,
+  .experience-flow,
+  .experience-flow-head,
+  .experience-flow-rail a,
+  .case-overview-band,
+  .case-overview-visual,
+  .partner-signal-band,
+  .partner-signal-grid article,
   .pilot-journey article,
   .pilot-aside,
   .pilot-form,
