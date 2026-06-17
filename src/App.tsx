@@ -28,7 +28,7 @@ import {
   UploadCloud,
   X
 } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -110,6 +110,101 @@ const modelPresets = [
 ] as const;
 
 const reportReviewStages = ["AI 初稿", "医生复核", "MDT 讨论", "导出归档"];
+
+const demoStorageKey = "gansight-demo-state-v1";
+
+const riskFilters = ["全部风险", "高风险", "需复核", "中风险", "低风险"];
+const statusFilters = ["全部状态", "已生成报告", "待医生复核", "分析完成", "模型重建中"];
+const deploymentOptions = [
+  { label: "院内沙盒", detail: "离线脱敏病例包，适合首轮医院内演示" },
+  { label: "云端演示", detail: "轻量账号与样例数据，适合跨院沟通" },
+  { label: "混合部署", detail: "本地影像数据 + 云端报告协作" }
+];
+const casePackageOptions = [
+  { label: "高风险优先包", detail: "优先验证 P1 / MDT 场景" },
+  { label: "首批 20 例", detail: "覆盖 CT / MRI / 复核队列" },
+  { label: "科研教学包", detail: "沉淀三维模型与报告示教素材" }
+];
+const materialItems = ["脱敏 DICOM 样例", "试点科室联系人", "报告模板偏好", "数据权限确认", "演示会议时间"];
+const reportTemplates = ["术前规划版", "MDT 讨论版", "科研教学版"];
+const reviewTones = ["医生复核", "MDT 建议", "教学标注"];
+
+type DemoState = {
+  activeCaseId: string;
+  caseSearch: string;
+  riskFilter: string;
+  statusFilter: string;
+  selectedPilotCaseIds: string[];
+  pilotTarget: string;
+  pilotMode: string;
+  deploymentPath: string;
+  casePackage: string;
+  materialChecklist: Record<string, boolean>;
+  pilotSubmittedAt: string;
+  reportTemplate: string;
+  reviewTone: string;
+  reviewNotes: Record<string, string>;
+  lastAction: string;
+};
+
+type DemoStateUpdate = DemoState | ((state: DemoState) => DemoState);
+
+function defaultMaterialChecklist() {
+  return Object.fromEntries(materialItems.map((item, index) => [item, index < 3]));
+}
+
+function createDefaultDemoState(): DemoState {
+  return {
+    activeCaseId: featuredCase.id,
+    caseSearch: "",
+    riskFilter: "全部风险",
+    statusFilter: "全部状态",
+    selectedPilotCaseIds: [featuredCase.id, cases[1]?.id].filter(Boolean),
+    pilotTarget: pilotTargets[0],
+    pilotMode: cooperationModes[0],
+    deploymentPath: deploymentOptions[0].label,
+    casePackage: casePackageOptions[0].label,
+    materialChecklist: defaultMaterialChecklist(),
+    pilotSubmittedAt: "",
+    reportTemplate: reportTemplates[0],
+    reviewTone: reviewTones[0],
+    reviewNotes: {},
+    lastAction: "已载入默认试点沙盒配置。"
+  };
+}
+
+function mergeDemoState(value: Partial<DemoState>): DemoState {
+  const fallback = createDefaultDemoState();
+  return {
+    ...fallback,
+    ...value,
+    selectedPilotCaseIds: Array.isArray(value.selectedPilotCaseIds) && value.selectedPilotCaseIds.length ? value.selectedPilotCaseIds : fallback.selectedPilotCaseIds,
+    materialChecklist: { ...fallback.materialChecklist, ...(value.materialChecklist || {}) },
+    reviewNotes: { ...fallback.reviewNotes, ...(value.reviewNotes || {}) }
+  };
+}
+
+function usePersistentDemoState() {
+  const [demoState, setDemoState] = useState<DemoState>(() => {
+    if (typeof window === "undefined") return createDefaultDemoState();
+    try {
+      const saved = window.localStorage.getItem(demoStorageKey);
+      return saved ? mergeDemoState(JSON.parse(saved) as Partial<DemoState>) : createDefaultDemoState();
+    } catch {
+      return createDefaultDemoState();
+    }
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(demoStorageKey, JSON.stringify(demoState));
+  }, [demoState]);
+
+  const updateDemoState = useCallback((update: DemoStateUpdate) => {
+    setDemoState((current) => (typeof update === "function" ? update(current) : update));
+  }, []);
+
+  return [demoState, updateDemoState] as const;
+}
 
 type RouteState = {
   path: string;
@@ -398,7 +493,27 @@ function HomePage() {
   );
 }
 
-function DashboardPage() {
+function DashboardPage({
+  demoState,
+  onDemoStateChange
+}: {
+  demoState: DemoState;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+}) {
+  const filteredCases = useMemo(() => {
+    const search = demoState.caseSearch.trim().toLowerCase();
+    return cases.filter((item) => {
+      const matchesSearch = search
+        ? [item.id, item.patient, item.hospital, item.department, item.type, item.lesion, item.status].join(" ").toLowerCase().includes(search)
+        : true;
+      const matchesRisk = demoState.riskFilter === "全部风险" || item.risk === demoState.riskFilter;
+      const matchesStatus = demoState.statusFilter === "全部状态" || item.status === demoState.statusFilter;
+      return matchesSearch && matchesRisk && matchesStatus;
+    });
+  }, [demoState.caseSearch, demoState.riskFilter, demoState.statusFilter]);
+
+  const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
+
   return (
     <>
       <PageHeader
@@ -420,6 +535,13 @@ function DashboardPage() {
           <StatCard {...metric} key={metric.label} />
         ))}
       </section>
+
+      <CaseWorkbench
+        demoState={demoState}
+        filteredCases={filteredCases}
+        onDemoStateChange={onDemoStateChange}
+        selectedPilotCases={selectedPilotCases}
+      />
 
       <section className="dashboard-grid">
         <article className="chart-panel wide">
@@ -507,50 +629,157 @@ function DashboardPage() {
           </ResponsiveContainer>
         </article>
       </section>
-
-      <CaseTable />
     </>
   );
 }
 
-function CaseTable() {
+function priorityForCase(item: ClinicalCase) {
+  if (item.risk.includes("高") || item.risk.includes("复核")) return { label: "P1", detail: "优先复核", tone: "high" };
+  if (item.risk.includes("中")) return { label: "P2", detail: "医生确认", tone: "medium" };
+  return { label: "P3", detail: "常规归档", tone: "low" };
+}
+
+function CaseWorkbench({
+  demoState,
+  filteredCases,
+  onDemoStateChange,
+  selectedPilotCases
+}: {
+  demoState: DemoState;
+  filteredCases: ClinicalCase[];
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+  selectedPilotCases: ClinicalCase[];
+}) {
+  const highPriorityCount = cases.filter((item) => priorityForCase(item).label === "P1").length;
+  const reportReadyCount = cases.filter((item) => item.reportStatus.includes("已") || item.status.includes("报告")).length;
+
+  const updateFilters = (patch: Partial<Pick<DemoState, "caseSearch" | "riskFilter" | "statusFilter">>) => {
+    onDemoStateChange((state) => ({ ...state, ...patch }));
+  };
+
+  const togglePilotCase = (caseId: string) => {
+    onDemoStateChange((state) => {
+      const selected = state.selectedPilotCaseIds.includes(caseId);
+      const nextCaseIds = selected ? state.selectedPilotCaseIds.filter((id) => id !== caseId) : [...state.selectedPilotCaseIds, caseId];
+      return {
+        ...state,
+        activeCaseId: caseId,
+        selectedPilotCaseIds: nextCaseIds.length ? nextCaseIds : [caseId],
+        lastAction: selected ? `已从试点病例包移除 ${caseId}。` : `已将 ${caseId} 加入试点病例包。`
+      };
+    });
+  };
+
   return (
-    <section className="table-section">
-      <div className="panel-heading">
+    <section className="case-workbench">
+      <div className="workbench-head">
         <div>
-          <span className="eyebrow">Priority Cases</span>
-          <h3>重点病例列表 · 点击进入闭环演示</h3>
+          <span className="eyebrow">Case Workbench</span>
+          <h3>病例优先级工作台</h3>
+          <p>从同一个工作台筛选病例、设置试点包，并进入影像分析、报告复核或试点配置。</p>
         </div>
-        <a className="secondary-button" href={caseHref("/reports", featuredCase)}>
-          查看报告中心
+        <a className="secondary-button" href="#/pilot">
+          配置试点包
         </a>
       </div>
-      <div className="data-table">
+
+      <div className="workbench-controls">
+        <label>
+          <span>检索病例</span>
+          <input
+            value={demoState.caseSearch}
+            onChange={(event) => updateFilters({ caseSearch: event.target.value })}
+            placeholder="病例编号 / 医院 / 病灶 / 状态"
+          />
+        </label>
+        <label>
+          <span>风险等级</span>
+          <select value={demoState.riskFilter} onChange={(event) => updateFilters({ riskFilter: event.target.value })}>
+            {riskFilters.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>处理状态</span>
+          <select value={demoState.statusFilter} onChange={(event) => updateFilters({ statusFilter: event.target.value })}>
+            {statusFilters.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="workbench-signal-grid">
+        {[
+          { label: "筛选结果", value: `${filteredCases.length} 例`, detail: "当前工作台可见病例" },
+          { label: "P1 优先级", value: `${highPriorityCount} 例`, detail: "高风险或需复核病例" },
+          { label: "报告就绪", value: `${reportReadyCount} 例`, detail: "已生成或已归档报告" },
+          { label: "试点病例包", value: `${selectedPilotCases.length} 例`, detail: demoState.casePackage },
+          { label: "最近动作", value: demoState.lastAction ? "已记录" : "待操作", detail: demoState.lastAction || "选择病例后同步到试点配置" }
+        ].map((item) => (
+          <article key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </article>
+        ))}
+      </div>
+
+      <div className="data-table case-workbench-table">
         <div className="table-row table-head">
           <span>病例编号</span>
           <span>患者</span>
           <span>影像类型</span>
           <span>病灶摘要</span>
+          <span>优先级</span>
           <span>风险</span>
           <span>状态</span>
+          <span>试点包</span>
           <span>操作</span>
         </div>
-        {cases.map((item) => (
-          <div className="table-row" key={item.id}>
-            <span>{item.id}</span>
-            <span>{item.patient}</span>
-            <span>{item.type}</span>
-            <span>{item.lesion}</span>
-            <span>
-              <RiskBadge risk={item.risk} />
-            </span>
-            <span>{item.status}</span>
-            <span className="row-actions">
-              <a href={caseHref("/imaging", item)}>分析</a>
-              <a href={caseHref("/reports", item)}>报告</a>
-            </span>
+        {filteredCases.length ? (
+          filteredCases.map((item) => {
+            const priority = priorityForCase(item);
+            const selected = demoState.selectedPilotCaseIds.includes(item.id);
+            return (
+              <div className="table-row" key={item.id}>
+                <span>{item.id}</span>
+                <span>{item.patient}</span>
+                <span>{item.type}</span>
+                <span>{item.lesion}</span>
+                <span>
+                  <span className={`priority-pill ${priority.tone}`}>
+                    {priority.label}
+                    <small>{priority.detail}</small>
+                  </span>
+                </span>
+                <span>
+                  <RiskBadge risk={item.risk} />
+                </span>
+                <span>{item.status}</span>
+                <span className={selected ? "pilot-selected" : "pilot-pending"}>{selected ? "已加入" : "待选择"}</span>
+                <span className="row-actions">
+                  <a href={caseHref("/imaging", item)} onClick={() => onDemoStateChange((state) => ({ ...state, activeCaseId: item.id }))}>
+                    分析
+                  </a>
+                  <a href={caseHref("/reports", item)} onClick={() => onDemoStateChange((state) => ({ ...state, activeCaseId: item.id }))}>
+                    报告
+                  </a>
+                  <button type="button" onClick={() => togglePilotCase(item.id)}>
+                    {selected ? "移除" : "试点"}
+                  </button>
+                </span>
+              </div>
+            );
+          })
+        ) : (
+          <div className="empty-state">
+            <Database size={28} />
+            <strong>没有匹配病例</strong>
+            <span>调整检索词、风险等级或处理状态后继续筛选。</span>
           </div>
-        ))}
+        )}
       </div>
     </section>
   );
@@ -879,10 +1108,21 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
   );
 }
 
-function ReportsPage({ selectedCase, generated }: { selectedCase: ClinicalCase; generated: boolean }) {
+function ReportsPage({
+  demoState,
+  generated,
+  onDemoStateChange,
+  selectedCase
+}: {
+  demoState: DemoState;
+  generated: boolean;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+  selectedCase: ClinicalCase;
+}) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [exportNotice, setExportNotice] = useState(generated ? "已从影像中心生成该病例的辅助报告草稿。" : "");
+  const reviewNote = demoState.reviewNotes[selectedCase.id] || "";
 
   useEffect(() => {
     setExportNotice(generated ? "已从影像中心生成该病例的辅助报告草稿。" : "");
@@ -1001,6 +1241,63 @@ function ReportsPage({ selectedCase, generated }: { selectedCase: ClinicalCase; 
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="report-template-panel">
+        <div className="report-template-head">
+          <div>
+            <span className="eyebrow">Template & Sign-off</span>
+            <h3>报告模板与复核意见</h3>
+            <p>模板、复核语气和医生意见会保存在当前演示沙盒中，便于跨病例复盘。</p>
+          </div>
+          <span>{demoState.reportTemplate} · {demoState.reviewTone}</span>
+        </div>
+        <div className="report-template-options">
+          <div>
+            <strong>报告模板</strong>
+            <div>
+              {reportTemplates.map((template) => (
+                <button
+                  className={demoState.reportTemplate === template ? "active" : ""}
+                  key={template}
+                  type="button"
+                  onClick={() => onDemoStateChange((state) => ({ ...state, reportTemplate: template, lastAction: `报告模板已切换为${template}。` }))}
+                >
+                  {template}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <strong>复核语气</strong>
+            <div>
+              {reviewTones.map((tone) => (
+                <button
+                  className={demoState.reviewTone === tone ? "active" : ""}
+                  key={tone}
+                  type="button"
+                  onClick={() => onDemoStateChange((state) => ({ ...state, reviewTone: tone, lastAction: `复核语气已切换为${tone}。` }))}
+                >
+                  {tone}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <label className="review-note-box">
+          <span>医生复核意见</span>
+          <textarea
+            value={reviewNote}
+            onChange={(event) =>
+              onDemoStateChange((state) => ({
+                ...state,
+                lastAction: `已更新 ${selectedCase.id} 的复核意见。`,
+                reviewNotes: { ...state.reviewNotes, [selectedCase.id]: event.target.value }
+              }))
+            }
+            placeholder="例如：建议补充动脉期原始序列，MDT 会前重点复核血管邻近区域。"
+          />
+        </label>
       </section>
 
       <section className="report-sheet">
@@ -1264,14 +1561,53 @@ function PartnersPage() {
   );
 }
 
-function PilotPage() {
-  const [submitted, setSubmitted] = useState(false);
-  const [selectedTarget, setSelectedTarget] = useState(pilotTargets[0]);
-  const [selectedMode, setSelectedMode] = useState(cooperationModes[0]);
+function PilotPage({
+  demoState,
+  onDemoStateChange
+}: {
+  demoState: DemoState;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+}) {
+  const selectedTarget = demoState.pilotTarget;
+  const selectedMode = demoState.pilotMode;
+  const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
+  const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
+  const submitted = Boolean(demoState.pilotSubmittedAt);
+  const readinessScore = Math.min(100, Math.round((selectedPilotCases.length ? 28 : 0) + (checkedMaterials / materialItems.length) * 52 + (submitted ? 20 : 0)));
+  const activeConfigStep = submitted ? 4 : checkedMaterials === materialItems.length ? 3 : selectedPilotCases.length ? 2 : 1;
+
+  const updatePilot = (patch: Partial<DemoState>) => {
+    onDemoStateChange((state) => ({ ...state, ...patch }));
+  };
+
+  const toggleMaterial = (item: string) => {
+    onDemoStateChange((state) => ({
+      ...state,
+      lastAction: `${item}${state.materialChecklist[item] ? "已取消确认" : "已确认"}。`,
+      materialChecklist: { ...state.materialChecklist, [item]: !state.materialChecklist[item] }
+    }));
+  };
+
+  const togglePilotCase = (caseId: string) => {
+    onDemoStateChange((state) => {
+      const selected = state.selectedPilotCaseIds.includes(caseId);
+      const nextCaseIds = selected ? state.selectedPilotCaseIds.filter((id) => id !== caseId) : [...state.selectedPilotCaseIds, caseId];
+      return {
+        ...state,
+        activeCaseId: caseId,
+        lastAction: selected ? `试点病例包已移除 ${caseId}。` : `试点病例包已加入 ${caseId}。`,
+        selectedPilotCaseIds: nextCaseIds.length ? nextCaseIds : [caseId]
+      };
+    });
+  };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSubmitted(true);
+    onDemoStateChange((state) => ({
+      ...state,
+      lastAction: "试点配置已提交，进入沟通准备状态。",
+      pilotSubmittedAt: new Date().toLocaleString("zh-CN", { hour12: false })
+    }));
   };
 
   return (
@@ -1297,8 +1633,8 @@ function PilotPage() {
             {pilotHighlights.map((item) => (
               <article key={item.label}>
                 <span>{item.label}</span>
-                <strong>{item.value}</strong>
-                <small>{item.detail}</small>
+                <strong>{item.label === "试点周期" ? `${readinessScore}%` : item.value}</strong>
+                <small>{item.label === "试点周期" ? "当前试点准备度" : item.detail}</small>
               </article>
             ))}
           </div>
@@ -1319,8 +1655,8 @@ function PilotPage() {
             </div>
           </div>
           <div className="pilot-loop-panel">
-            {["病例", "影像", "AI 分析", "报告"].map((item, index) => (
-              <div className={index === 2 ? "active" : ""} key={item}>
+            {["对象", "部署", "病例包", "材料"].map((item, index) => (
+              <div className={index < activeConfigStep ? "active" : ""} key={item}>
                 <span>{String(index + 1).padStart(2, "0")}</span>
                 <strong>{item}</strong>
               </div>
@@ -1370,7 +1706,7 @@ function PilotPage() {
                   className={selectedTarget === target ? "active" : ""}
                   key={target}
                   type="button"
-                  onClick={() => setSelectedTarget(target)}
+                  onClick={() => updatePilot({ pilotTarget: target, lastAction: `试点对象已切换为${target}。` })}
                 >
                   {target}
                 </button>
@@ -1381,7 +1717,12 @@ function PilotPage() {
             <span className="eyebrow">合作方式</span>
             <div className="mode-list">
               {cooperationModes.map((mode) => (
-                <button className={selectedMode === mode ? "active" : ""} key={mode} type="button" onClick={() => setSelectedMode(mode)}>
+                <button
+                  className={selectedMode === mode ? "active" : ""}
+                  key={mode}
+                  type="button"
+                  onClick={() => updatePilot({ lastAction: `合作方式已切换为${mode}。`, pilotMode: mode })}
+                >
                   <Handshake size={17} />
                   {mode}
                 </button>
@@ -1407,7 +1748,91 @@ function PilotPage() {
               <h2>提交试点需求</h2>
               <p>我们会基于当前选择准备试点沟通：{selectedTarget} / {selectedMode}。</p>
             </div>
-            <span className="pilot-form-status">1 个工作日响应</span>
+            <span className="pilot-form-status">{submitted ? "已进入准备" : "1 个工作日响应"}</span>
+          </div>
+
+          <div className="pilot-configurator">
+            <div className="pilot-stepper">
+              {["试点对象", "部署路径", "病例包", "材料确认"].map((step, index) => (
+                <div className={index < activeConfigStep ? "active" : ""} key={step}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <strong>{step}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="pilot-option-grid">
+              <div>
+                <span className="eyebrow">Deployment</span>
+                <strong>部署路径</strong>
+                {deploymentOptions.map((option) => (
+                  <button
+                    className={demoState.deploymentPath === option.label ? "active" : ""}
+                    key={option.label}
+                    type="button"
+                    onClick={() => updatePilot({ deploymentPath: option.label, lastAction: `部署路径已选择${option.label}。` })}
+                  >
+                    <span>{option.label}</span>
+                    <small>{option.detail}</small>
+                  </button>
+                ))}
+              </div>
+              <div>
+                <span className="eyebrow">Case Package</span>
+                <strong>病例包策略</strong>
+                {casePackageOptions.map((option) => (
+                  <button
+                    className={demoState.casePackage === option.label ? "active" : ""}
+                    key={option.label}
+                    type="button"
+                    onClick={() => updatePilot({ casePackage: option.label, lastAction: `病例包策略已切换为${option.label}。` })}
+                  >
+                    <span>{option.label}</span>
+                    <small>{option.detail}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="pilot-case-package">
+              <div>
+                <span className="eyebrow">Selected Cases</span>
+                <strong>试点病例包 · {selectedPilotCases.length} 例</strong>
+              </div>
+              <div>
+                {cases.map((item) => {
+                  const selected = demoState.selectedPilotCaseIds.includes(item.id);
+                  return (
+                    <button className={selected ? "active" : ""} key={item.id} type="button" onClick={() => togglePilotCase(item.id)}>
+                      <span>{item.id}</span>
+                      <strong>{item.lesion}</strong>
+                      <small>{item.type} · {item.risk}</small>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="material-checklist">
+              <div>
+                <span className="eyebrow">Materials</span>
+                <strong>材料清单 · {checkedMaterials}/{materialItems.length}</strong>
+              </div>
+              <div>
+                {materialItems.map((item) => (
+                  <button
+                    aria-pressed={Boolean(demoState.materialChecklist[item])}
+                    className={demoState.materialChecklist[item] ? "checked" : ""}
+                    key={item}
+                    type="button"
+                    onClick={() => toggleMaterial(item)}
+                  >
+                    <CheckCircle2 size={17} />
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="form-grid">
@@ -1460,7 +1885,9 @@ function PilotPage() {
               <CheckCircle2 size={20} />
               <div>
                 <strong>已生成试点沟通路径</strong>
-                <span>团队将在 1 个工作日内联系您，也可以先进入病例闭环演示。</span>
+                <span>
+                  {demoState.pilotSubmittedAt} · {demoState.deploymentPath} · {selectedPilotCases.length} 例病例 · 材料 {checkedMaterials}/{materialItems.length}
+                </span>
               </div>
               <a href={caseHref("/imaging", featuredCase)}>影像分析</a>
               <a href={caseHref("/reports", featuredCase, "generated=1")}>辅助报告</a>
@@ -1486,12 +1913,18 @@ function NotFoundPage() {
 
 function App() {
   const route = useHashRoute();
+  const [demoState, onDemoStateChange] = usePersistentDemoState();
   const currentPath = route.path;
   const selectedCase = useMemo(() => {
-    const caseId = route.params.get("case");
+    const caseId = route.params.get("case") || demoState.activeCaseId;
     return cases.find((item) => item.id === caseId) || featuredCase;
-  }, [route]);
+  }, [demoState.activeCaseId, route]);
   const reportGenerated = route.params.get("generated") === "1";
+
+  useEffect(() => {
+    if (selectedCase.id === demoState.activeCaseId) return;
+    onDemoStateChange((state) => ({ ...state, activeCaseId: selectedCase.id }));
+  }, [demoState.activeCaseId, onDemoStateChange, selectedCase.id]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -1502,19 +1935,19 @@ function App() {
       case "/":
         return <HomePage />;
       case "/dashboard":
-        return <DashboardPage />;
+        return <DashboardPage demoState={demoState} onDemoStateChange={onDemoStateChange} />;
       case "/imaging":
         return <ImagingPage selectedCase={selectedCase} />;
       case "/reports":
-        return <ReportsPage selectedCase={selectedCase} generated={reportGenerated} />;
+        return <ReportsPage demoState={demoState} selectedCase={selectedCase} generated={reportGenerated} onDemoStateChange={onDemoStateChange} />;
       case "/partners":
         return <PartnersPage />;
       case "/pilot":
-        return <PilotPage />;
+        return <PilotPage demoState={demoState} onDemoStateChange={onDemoStateChange} />;
       default:
         return <NotFoundPage />;
     }
-  }, [currentPath, reportGenerated, selectedCase]);
+  }, [currentPath, demoState, onDemoStateChange, reportGenerated, selectedCase]);
 
   return (
     <div className="app-shell">
