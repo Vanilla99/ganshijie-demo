@@ -138,6 +138,17 @@ const manualAcceptanceItems = [
   { id: "handoffReview", label: "交付复盘", detail: "确认首例闭环指标、反馈记录和下一步扩展路径" }
 ] as const;
 
+type ImagingEvidence = {
+  status: "idle" | "running" | "completed";
+  step: number;
+  slice: number;
+  viewKey: "all" | "liver" | "tumor" | "vessel";
+  viewLabel: string;
+  exportCount: number;
+  completedAt: string;
+  lastEvent: string;
+};
+
 type DemoState = {
   activeCaseId: string;
   caseSearch: string;
@@ -167,6 +178,7 @@ type DemoState = {
   pilotRemark: string;
   pilotSubmissionTrail: string[];
   pilotAcceptanceChecks: Record<string, boolean>;
+  imagingEvidence: Record<string, ImagingEvidence>;
   lastAction: string;
 };
 
@@ -217,6 +229,7 @@ function createDefaultDemoState(): DemoState {
     pilotRemark: "优先使用脱敏病例包完成 7 天首例闭环演示。",
     pilotSubmissionTrail: [],
     pilotAcceptanceChecks: {},
+    imagingEvidence: {},
     lastAction: "已载入默认试点沙盒配置。"
   };
 }
@@ -230,6 +243,7 @@ function mergeDemoState(value: Partial<DemoState>): DemoState {
     exportHistory: Array.isArray(value.exportHistory) ? value.exportHistory : fallback.exportHistory,
     pilotSubmissionTrail: Array.isArray(value.pilotSubmissionTrail) ? value.pilotSubmissionTrail : fallback.pilotSubmissionTrail,
     pilotAcceptanceChecks: { ...fallback.pilotAcceptanceChecks, ...(value.pilotAcceptanceChecks || {}) },
+    imagingEvidence: { ...fallback.imagingEvidence, ...(value.imagingEvidence || {}) },
     materialChecklist: { ...fallback.materialChecklist, ...(value.materialChecklist || {}) },
     reviewNotes: { ...fallback.reviewNotes, ...(value.reviewNotes || {}) }
   };
@@ -585,6 +599,11 @@ function DemoStatusHub({
   const priority = priorityForCase(selectedCase);
   const activeInPilotPackage = demoState.selectedPilotCaseIds.includes(selectedCase.id);
   const deliveryLabel = demoState.pilotSubmittedAt ? "已提交" : checkedMaterials === materialItems.length ? "可提交" : "待补齐";
+  const activeImagingEvidence = demoState.imagingEvidence[selectedCase.id];
+  const imagingLabel = activeImagingEvidence?.status === "completed" ? "已完成" : activeImagingEvidence?.status === "running" ? "处理中" : "待演示";
+  const imagingDetail = activeImagingEvidence
+    ? `${activeImagingEvidence.viewLabel} · 切片 ${String(activeImagingEvidence.slice).padStart(3, "0")}`
+    : "完成 AI 分析后同步到试点验收";
 
   const toggleActiveCaseInPilotPackage = () => {
     onDemoStateChange((state) => {
@@ -621,6 +640,7 @@ function DemoStatusHub({
         {[
           { label: "复核优先级", value: priority.label, detail: priority.detail },
           { label: "试点病例包", value: `${selectedPilotCases.length} 例`, detail: demoState.casePackage },
+          { label: "影像演示", value: imagingLabel, detail: imagingDetail },
           { label: "报告模板", value: demoState.reportTemplate, detail: `${demoState.exportFormat} · ${demoState.reviewTone}` },
           { label: "交付准备度", value: `${readinessScore}%`, detail: `${deliveryLabel} · 材料 ${checkedMaterials}/${materialItems.length}` }
         ].map((item) => (
@@ -921,11 +941,19 @@ function priorityForCase(item: ClinicalCase) {
   return { label: "P3", detail: "常规归档", tone: "low" };
 }
 
+function modelViewLabel(view: "all" | "liver" | "tumor" | "vessel") {
+  if (view === "liver") return "肝脏模型";
+  if (view === "tumor") return "病灶定位";
+  if (view === "vessel") return "血管优先";
+  return "全部结构";
+}
+
 function pilotAcceptanceItemsFor(demoState: DemoState) {
   const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
   const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
   const reviewNoteCount = Object.values(demoState.reviewNotes).filter((value) => value.trim()).length;
   const highPriorityPilotCases = selectedPilotCases.filter((item) => priorityForCase(item).label === "P1").length;
+  const completedImagingCases = selectedPilotCases.filter((item) => demoState.imagingEvidence[item.id]?.status === "completed");
 
   return [
     {
@@ -933,6 +961,13 @@ function pilotAcceptanceItemsFor(demoState: DemoState) {
       label: "病例包就绪",
       detail: `${selectedPilotCases.length} 例已纳入试点包，含 ${highPriorityPilotCases} 例 P1 场景`,
       done: selectedPilotCases.length >= 2 && highPriorityPilotCases > 0,
+      mode: "auto"
+    },
+    {
+      id: "imagingReady",
+      label: "影像演示",
+      detail: `${completedImagingCases.length}/${selectedPilotCases.length || 0} 例完成 AI 分析与三维查看留痕`,
+      done: completedImagingCases.length > 0,
       mode: "auto"
     },
     {
@@ -1213,41 +1248,108 @@ function CaseSidePanel({
   );
 }
 
-function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
-  const [slice, setSlice] = useState(72);
+function ImagingPage({
+  demoState,
+  onDemoStateChange,
+  selectedCase
+}: {
+  demoState: DemoState;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+  selectedCase: ClinicalCase;
+}) {
+  const savedEvidence = demoState.imagingEvidence[selectedCase.id];
+  const [slice, setSlice] = useState(savedEvidence?.slice ?? Math.min(72, selectedCase.sliceCount));
   const [overlays, setOverlays] = useState({ liver: true, tumor: true, vessel: true });
-  const [modelView, setModelView] = useState<"all" | "liver" | "tumor" | "vessel">("all");
-  const [activeStep, setActiveStep] = useState(0);
+  const [modelView, setModelView] = useState<"all" | "liver" | "tumor" | "vessel">(savedEvidence?.viewKey ?? "all");
+  const [activeStep, setActiveStep] = useState(savedEvidence?.status === "completed" ? 7 : savedEvidence?.step ?? 0);
   const [isRunning, setIsRunning] = useState(false);
   const [fileName, setFileName] = useState(selectedCase.fileName);
   const [liverOpacity, setLiverOpacity] = useState(58);
   const [exportNotice, setExportNotice] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
+  const recordImagingEvidence = useCallback(
+    (patch: Partial<ImagingEvidence>, action: string) => {
+      onDemoStateChange((state) => {
+        const previous = state.imagingEvidence[selectedCase.id] || {
+          status: "idle",
+          step: 0,
+          slice,
+          viewKey: modelView,
+          viewLabel: modelViewLabel(modelView),
+          exportCount: 0,
+          completedAt: "",
+          lastEvent: ""
+        };
+        const nextEvidence: ImagingEvidence = {
+          ...previous,
+          step: activeStep,
+          slice,
+          viewKey: modelView,
+          viewLabel: modelViewLabel(modelView),
+          ...patch
+        };
+
+        return {
+          ...state,
+          activeCaseId: selectedCase.id,
+          imagingEvidence: {
+            ...state.imagingEvidence,
+            [selectedCase.id]: nextEvidence
+          },
+          lastAction: action
+        };
+      });
+    },
+    [activeStep, modelView, onDemoStateChange, selectedCase.id, slice]
+  );
+
   useEffect(() => {
-    setSlice(Math.min(72, selectedCase.sliceCount));
+    const evidence = demoState.imagingEvidence[selectedCase.id];
+    setSlice(evidence?.slice ?? Math.min(72, selectedCase.sliceCount));
     setFileName(selectedCase.fileName);
-    setActiveStep(0);
+    setModelView(evidence?.viewKey ?? "all");
+    setActiveStep(evidence?.status === "completed" ? 7 : evidence?.step ?? 0);
     setIsRunning(false);
-    setExportNotice("");
+    setExportNotice(evidence?.status === "completed" ? evidence.lastEvent : "");
   }, [selectedCase]);
 
   useEffect(() => {
     if (!isRunning) return;
     const timer = window.setInterval(() => {
       setActiveStep((step) => {
-        if (step >= 7) {
+        const nextStep = Math.min(7, step + 1);
+        if (nextStep >= 7) {
+          const message = `${selectedCase.id} AI 分析完成，已生成结构化报告草稿。`;
           setIsRunning(false);
-          setExportNotice("AI 分析完成，已生成结构化报告草稿。");
+          setExportNotice(message);
+          recordImagingEvidence(
+            {
+              status: "completed",
+              step: 7,
+              completedAt: statusTime(),
+              lastEvent: message
+            },
+            message
+          );
           window.clearInterval(timer);
           return 7;
         }
-        return step + 1;
+        recordImagingEvidence(
+          {
+            status: "running",
+            step: nextStep,
+            completedAt: "",
+            lastEvent: `${selectedCase.id} 正在执行 AI 分割与三维重建。`
+          },
+          `${selectedCase.id} 正在执行 AI 分割与三维重建。`
+        );
+        return nextStep;
       });
     }, 850);
 
     return () => window.clearInterval(timer);
-  }, [isRunning]);
+  }, [isRunning, recordImagingEvidence, selectedCase.id]);
 
   const modelVisibility = useMemo(
     () => ({
@@ -1262,14 +1364,32 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
     setActiveStep(0);
     setExportNotice("");
     setIsRunning(true);
+    recordImagingEvidence(
+      {
+        status: "running",
+        step: 0,
+        completedAt: "",
+        lastEvent: `${selectedCase.id} 已启动 AI 分析流程。`
+      },
+      `${selectedCase.id} 已启动 AI 分割与三维重建。`
+    );
   };
 
   const processingComplete = activeStep === 7;
+  const evidence = demoState.imagingEvidence[selectedCase.id];
+  const evidenceStatus = processingComplete || evidence?.status === "completed" ? "已完成" : isRunning || evidence?.status === "running" ? "处理中" : "待演示";
   const workstationSignals = [
     { label: "复核优先级", value: selectedCase.risk.includes("高") ? "P1" : selectedCase.risk.includes("复核") ? "P1" : selectedCase.risk.includes("中") ? "P2" : "P3", detail: "结合风险等级自动提示" },
     { label: "关键切片", value: String(slice).padStart(3, "0"), detail: `${selectedCase.sliceCount} 张序列内定位` },
     { label: "病灶负荷", value: metricValue(selectedCase, "肿瘤体积"), detail: metricValue(selectedCase, "肿瘤数量") },
-    { label: "报告状态", value: processingComplete ? "草稿就绪" : selectedCase.reportStatus, detail: processingComplete ? "可进入报告中心" : "等待 AI 流程完成" }
+    { label: "报告状态", value: processingComplete ? "草稿就绪" : selectedCase.reportStatus, detail: processingComplete ? "可进入报告中心" : "等待 AI 流程完成" },
+    { label: "演示留痕", value: evidenceStatus, detail: evidence?.lastEvent || "开始处理后写入试点沙盒" }
+  ];
+  const evidenceSummary = [
+    { label: "状态", value: evidenceStatus, detail: evidence?.completedAt ? `完成于 ${evidence.completedAt}` : "等待 AI 流程完成" },
+    { label: "三维视角", value: evidence?.viewLabel || modelViewLabel(modelView), detail: `肝脏透明度 ${liverOpacity}%` },
+    { label: "关键切片", value: String(evidence?.slice ?? slice).padStart(3, "0"), detail: `${selectedCase.sliceCount} 张序列` },
+    { label: "截图导出", value: `${evidence?.exportCount || 0} 次`, detail: "可作为 MDT 会前材料" }
   ];
 
   return (
@@ -1284,7 +1404,14 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
               开始处理
               <ArrowRight size={18} />
             </button>
-            <a className={`secondary-button ${processingComplete ? "" : "disabled-link"}`} href={caseHref("/reports", selectedCase, "generated=1")}>
+            <a
+              className={`secondary-button ${processingComplete ? "" : "disabled-link"}`}
+              href={caseHref("/reports", selectedCase, "generated=1")}
+              onClick={() => {
+                const message = `${selectedCase.id} 已从影像中心进入辅助报告生成。`;
+                recordImagingEvidence({ lastEvent: message }, message);
+              }}
+            >
               生成报告
               <FileText size={17} />
             </a>
@@ -1305,16 +1432,42 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
         ))}
       </section>
 
+      <section className={`imaging-evidence-strip ${processingComplete ? "complete" : ""}`} aria-label="影像演示留痕">
+        <div>
+          <span className="eyebrow">Workflow Evidence</span>
+          <strong>{evidence?.lastEvent || `${selectedCase.id} 等待开始影像分析。`}</strong>
+        </div>
+        <div className="imaging-evidence-grid">
+          {evidenceSummary.map((item) => (
+            <article key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.detail}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="imaging-grid">
         <CaseSidePanel
           selectedCase={selectedCase}
           fileName={fileName}
           onSelectFile={() => fileInput.current?.click()}
           onClear={() => {
+            const message = `${selectedCase.id} 已清空影像演示输入，等待重新选择 DICOM。`;
             setFileName("未选择文件");
             setActiveStep(0);
             setIsRunning(false);
             setExportNotice("");
+            recordImagingEvidence(
+              {
+                status: "idle",
+                step: 0,
+                completedAt: "",
+                lastEvent: message
+              },
+              message
+            );
           }}
           onStart={startProcessing}
         />
@@ -1323,7 +1476,23 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
           type="file"
           accept=".zip,.dcm"
           hidden
-          onChange={(event) => setFileName(event.target.files?.[0]?.name || fileName)}
+          onChange={(event) => {
+            const nextFileName = event.target.files?.[0]?.name || fileName;
+            const message = `${selectedCase.id} 已替换 DICOM 源文件。`;
+            setFileName(nextFileName);
+            setActiveStep(0);
+            setIsRunning(false);
+            setExportNotice("");
+            recordImagingEvidence(
+              {
+                status: "idle",
+                step: 0,
+                completedAt: "",
+                lastEvent: message
+              },
+              message
+            );
+          }}
         />
 
         <ProcessTimeline
@@ -1332,9 +1501,19 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
           selectedCase={selectedCase}
           onStart={startProcessing}
           onReset={() => {
+            const message = `${selectedCase.id} 已重置 AI 处理流程。`;
             setActiveStep(0);
             setIsRunning(false);
             setExportNotice("");
+            recordImagingEvidence(
+              {
+                status: "idle",
+                step: 0,
+                completedAt: "",
+                lastEvent: message
+              },
+              message
+            );
           }}
         />
       </section>
@@ -1376,7 +1555,20 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
                 className={modelView === value ? "active" : ""}
                 key={value}
                 type="button"
-                onClick={() => setModelView(value as typeof modelView)}
+                onClick={() => {
+                  const nextView = value as typeof modelView;
+                  const message = `${selectedCase.id} 已切换至${modelViewLabel(nextView)}视角。`;
+                  setModelView(nextView);
+                  setExportNotice(message);
+                  recordImagingEvidence(
+                    {
+                      viewKey: nextView,
+                      viewLabel: modelViewLabel(nextView),
+                      lastEvent: message
+                    },
+                    message
+                  );
+                }}
               >
                 {label}
               </button>
@@ -1390,9 +1582,19 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
                 key={preset.key}
                 type="button"
                 onClick={() => {
-                  setModelView(preset.view as typeof modelView);
+                  const nextView = preset.view as typeof modelView;
+                  const message = `${selectedCase.id} 已切换到${preset.label}视角。`;
+                  setModelView(nextView);
                   setLiverOpacity(preset.opacity);
-                  setExportNotice(`已切换到${preset.label}视角。`);
+                  setExportNotice(message);
+                  recordImagingEvidence(
+                    {
+                      viewKey: nextView,
+                      viewLabel: preset.label,
+                      lastEvent: message
+                    },
+                    message
+                  );
                 }}
               >
                 <span>{preset.label}</span>
@@ -1411,11 +1613,32 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
                 onChange={(event) => setLiverOpacity(Number(event.target.value))}
               />
             </label>
-            <button className="secondary-button icon-text" type="button" onClick={() => setExportNotice("已模拟导出当前三维视角截图。")}>
+            <button
+              className="secondary-button icon-text"
+              type="button"
+              onClick={() => {
+                const message = `${selectedCase.id} 已模拟导出当前三维视角截图。`;
+                setExportNotice(message);
+                recordImagingEvidence(
+                  {
+                    exportCount: (demoState.imagingEvidence[selectedCase.id]?.exportCount || 0) + 1,
+                    lastEvent: message
+                  },
+                  message
+                );
+              }}
+            >
               <Download size={16} />
               截图导出
             </button>
-            <a className="primary-button icon-text" href={caseHref("/reports", selectedCase, "generated=1")}>
+            <a
+              className="primary-button icon-text"
+              href={caseHref("/reports", selectedCase, "generated=1")}
+              onClick={() => {
+                const message = `${selectedCase.id} 已从影像中心进入辅助报告生成。`;
+                recordImagingEvidence({ lastEvent: message }, message);
+              }}
+            >
               <FileText size={16} />
               生成报告
             </a>
@@ -1424,7 +1647,7 @@ function ImagingPage({ selectedCase }: { selectedCase: ClinicalCase }) {
             <MedicalScene {...modelVisibility} liverOpacity={liverOpacity / 100} />
             <div className="model-stage-overlay">
               <span>当前视角</span>
-              <strong>{modelView === "all" ? "全部结构" : modelView === "liver" ? "肝脏模型" : modelView === "tumor" ? "病灶定位" : "血管优先"}</strong>
+              <strong>{modelViewLabel(modelView)}</strong>
               <small>透明度 {liverOpacity}% · 可拖拽旋转</small>
             </div>
           </div>
@@ -2557,7 +2780,7 @@ function App() {
       case "/dashboard":
         return <DashboardPage demoState={demoState} onDemoStateChange={onDemoStateChange} />;
       case "/imaging":
-        return <ImagingPage selectedCase={selectedCase} />;
+        return <ImagingPage demoState={demoState} onDemoStateChange={onDemoStateChange} selectedCase={selectedCase} />;
       case "/reports":
         return <ReportsPage demoState={demoState} selectedCase={selectedCase} generated={reportGenerated} onDemoStateChange={onDemoStateChange} />;
       case "/partners":

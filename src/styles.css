@@ -598,7 +598,7 @@ main {
 
 .hub-signal-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
 }
@@ -1492,7 +1492,7 @@ main {
 
 .workstation-status-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin: 0 0 18px;
 }
@@ -1522,6 +1522,80 @@ main {
   margin: 12px 0 7px;
   font-size: clamp(22px, 2.4vw, 30px);
   line-height: 1.05;
+}
+
+.imaging-evidence-strip {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  gap: 12px;
+  align-items: stretch;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(20, 184, 166, 0.05)),
+    rgba(255, 255, 255, 0.76);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.07);
+}
+
+.imaging-evidence-strip.complete {
+  border-color: rgba(16, 185, 129, 0.22);
+  background:
+    linear-gradient(135deg, rgba(16, 185, 129, 0.09), rgba(14, 165, 233, 0.05)),
+    rgba(255, 255, 255, 0.78);
+}
+
+.imaging-evidence-strip > div:first-child {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.imaging-evidence-strip > div:first-child strong {
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.22;
+}
+
+.imaging-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.imaging-evidence-grid article {
+  min-width: 0;
+  min-height: 86px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.imaging-evidence-grid span,
+.imaging-evidence-grid small {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.38;
+  text-overflow: ellipsis;
+}
+
+.imaging-evidence-grid strong {
+  display: block;
+  margin: 7px 0 5px;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.12;
+  text-overflow: ellipsis;
 }
 
 .upload-actions,
@@ -4005,6 +4079,7 @@ main {
   .page-header,
   .scenario-band,
   .imaging-grid,
+  .imaging-evidence-strip,
   .viewer-grid,
   .report-hero,
   .report-sheet-body,
@@ -4027,6 +4102,7 @@ main {
   }
 
   .workstation-status-grid,
+  .imaging-evidence-grid,
   .pipeline-status-grid,
   .model-preset-grid,
   .report-review-grid,
@@ -4135,6 +4211,7 @@ main {
   .workbench-signal-grid,
   .report-workbench-summary,
   .workstation-status-grid,
+  .imaging-evidence-grid,
   .pipeline-status-grid,
   .model-preset-grid,
   .report-review-grid,
