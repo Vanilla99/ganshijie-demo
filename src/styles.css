@@ -4107,6 +4107,220 @@ main {
   background: rgba(14, 165, 233, 0.1);
 }
 
+.pilot-handoff-briefing {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(20, 184, 166, 0.2);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.08), rgba(14, 165, 233, 0.05)),
+    rgba(255, 255, 255, 0.78);
+}
+
+.handoff-briefing-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.handoff-briefing-head > div:first-child {
+  min-width: 0;
+}
+
+.handoff-briefing-head strong,
+.handoff-briefing-head small {
+  display: block;
+}
+
+.handoff-briefing-head strong {
+  margin-top: 7px;
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.handoff-briefing-head small {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.handoff-briefing-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.handoff-briefing-grid,
+.handoff-preview-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.handoff-briefing-grid {
+  grid-template-columns: minmax(230px, 0.86fr) minmax(0, 1.14fr);
+}
+
+.handoff-preview-grid {
+  grid-template-columns: minmax(0, 1.22fr) minmax(220px, 0.78fr);
+}
+
+.handoff-summary-card {
+  min-width: 0;
+  padding: 16px;
+  color: white;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 88% 16%, rgba(94, 234, 212, 0.28), transparent 8rem),
+    linear-gradient(145deg, #07111f, #12333c);
+}
+
+.handoff-summary-card h3 {
+  margin: 10px 0 8px;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.05;
+}
+
+.handoff-summary-card p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.58;
+}
+
+.handoff-summary-card div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.handoff-summary-card div span {
+  padding: 6px 9px;
+  color: rgba(255, 255, 255, 0.86);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.handoff-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.handoff-evidence-grid article {
+  min-width: 0;
+  min-height: 102px;
+  padding: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.handoff-evidence-grid span,
+.handoff-evidence-grid small {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+}
+
+.handoff-evidence-grid strong {
+  display: block;
+  margin: 9px 0 6px;
+  color: #0f172a;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.handoff-text-preview,
+.handoff-gap-column,
+.handoff-history {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.handoff-text-preview {
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+}
+
+.handoff-text-preview span {
+  display: block;
+  padding: 8px 10px;
+  color: #334155;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.handoff-gap-column {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.handoff-gap-column > div {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.handoff-gap-column p {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 8px 9px;
+  color: #7c4a03;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.1);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.handoff-gap-column p.done {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.handoff-gap-column svg {
+  flex: 0 0 auto;
+}
+
+.handoff-history {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.handoff-history > div strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.handoff-history > span {
+  display: block;
+  padding: 9px 11px;
+  color: #475569;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
 .pilot-form label {
   display: grid;
   gap: 8px;
@@ -4370,6 +4584,8 @@ main {
   .scenario-band,
   .command-hero-panel,
   .command-board-grid,
+  .handoff-briefing-grid,
+  .handoff-preview-grid,
   .imaging-grid,
   .imaging-evidence-strip,
   .viewer-grid,
@@ -4396,6 +4612,7 @@ main {
   .workstation-status-grid,
   .command-signal-grid,
   .imaging-evidence-grid,
+  .handoff-evidence-grid,
   .pipeline-status-grid,
   .model-preset-grid,
   .report-review-grid,
@@ -4506,6 +4723,7 @@ main {
   .hub-signal-grid,
   .command-signal-grid,
   .command-timeline,
+  .handoff-evidence-grid,
   .workbench-controls,
   .workbench-signal-grid,
   .report-workbench-summary,
@@ -4652,6 +4870,17 @@ main {
     flex-direction: column;
   }
 
+  .handoff-briefing-head,
+  .handoff-briefing-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .handoff-briefing-actions .primary-button,
+  .handoff-briefing-actions .secondary-button {
+    width: 100%;
+  }
+
   .pilot-header-actions .secondary-button,
   .pilot-header-actions .pilot-form-status {
     min-height: 36px;
@@ -4759,6 +4988,7 @@ main {
   .case-workbench,
   .pilot-command-center,
   .report-workbench,
+  .pilot-handoff-briefing,
   .pilot-aside,
   .pilot-form,
   .chart-panel,

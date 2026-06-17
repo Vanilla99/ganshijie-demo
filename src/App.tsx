@@ -178,6 +178,7 @@ type DemoState = {
   pilotRemark: string;
   pilotSubmissionTrail: string[];
   pilotAcceptanceChecks: Record<string, boolean>;
+  handoffHistory: string[];
   imagingEvidence: Record<string, ImagingEvidence>;
   lastAction: string;
 };
@@ -229,6 +230,7 @@ function createDefaultDemoState(): DemoState {
     pilotRemark: "优先使用脱敏病例包完成 7 天首例闭环演示。",
     pilotSubmissionTrail: [],
     pilotAcceptanceChecks: {},
+    handoffHistory: [],
     imagingEvidence: {},
     lastAction: "已载入默认试点沙盒配置。"
   };
@@ -242,6 +244,7 @@ function mergeDemoState(value: Partial<DemoState>): DemoState {
     selectedPilotCaseIds: Array.isArray(value.selectedPilotCaseIds) && value.selectedPilotCaseIds.length ? value.selectedPilotCaseIds : fallback.selectedPilotCaseIds,
     exportHistory: Array.isArray(value.exportHistory) ? value.exportHistory : fallback.exportHistory,
     pilotSubmissionTrail: Array.isArray(value.pilotSubmissionTrail) ? value.pilotSubmissionTrail : fallback.pilotSubmissionTrail,
+    handoffHistory: Array.isArray(value.handoffHistory) ? value.handoffHistory : fallback.handoffHistory,
     pilotAcceptanceChecks: { ...fallback.pilotAcceptanceChecks, ...(value.pilotAcceptanceChecks || {}) },
     imagingEvidence: { ...fallback.imagingEvidence, ...(value.imagingEvidence || {}) },
     materialChecklist: { ...fallback.materialChecklist, ...(value.materialChecklist || {}) },
@@ -2495,6 +2498,152 @@ function PartnersPage() {
   );
 }
 
+function PilotHandoffBriefing({
+  acceptanceItems,
+  acceptanceScore,
+  checkedMaterials,
+  demoState,
+  onDemoStateChange,
+  selectedPilotCases
+}: {
+  acceptanceItems: ReturnType<typeof pilotAcceptanceItemsFor>;
+  acceptanceScore: number;
+  checkedMaterials: number;
+  demoState: DemoState;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+  selectedPilotCases: ClinicalCase[];
+}) {
+  const leadCase = selectedPilotCases.find((item) => priorityForCase(item).label === "P1") || selectedPilotCases[0] || featuredCase;
+  const completedImagingCases = selectedPilotCases.filter((item) => demoState.imagingEvidence[item.id]?.status === "completed");
+  const reviewedCases = selectedPilotCases.filter((item) => demoState.reviewNotes[item.id]?.trim());
+  const doneAcceptanceCount = acceptanceItems.filter((item) => item.done).length;
+  const missingAcceptance = acceptanceItems.filter((item) => !item.done).slice(0, 4);
+  const readyAcceptance = acceptanceItems.filter((item) => item.done).slice(0, 4);
+  const briefingLines = [
+    "肝视界试点交付简报",
+    `单位：${demoState.pilotOrganization} / ${demoState.pilotDepartment}`,
+    `试点对象：${demoState.pilotTarget} · ${demoState.pilotMode}`,
+    `部署路径：${demoState.deploymentPath} · ${demoState.casePackage}`,
+    `病例包：${selectedPilotCases.length} 例，P1 ${selectedPilotCases.filter((item) => priorityForCase(item).label === "P1").length} 例，主病例 ${leadCase.id}`,
+    `影像证据：${completedImagingCases.length} 例已完成 AI 分析留痕`,
+    `报告证据：${reviewedCases.length} 条复核意见，${demoState.exportHistory.length} 条导出/材料记录`,
+    `材料状态：${checkedMaterials}/${materialItems.length} 已确认，验收进度 ${acceptanceScore}%`,
+    `下一步：${missingAcceptance[0]?.label || "进入交付复盘"}`
+  ];
+  const briefingText = briefingLines.join("\n");
+  const evidenceCards = [
+    { label: "病例证据", value: `${selectedPilotCases.length} 例`, detail: `${leadCase.id} · ${leadCase.lesion}` },
+    { label: "影像留痕", value: `${completedImagingCases.length} 例`, detail: demoState.imagingEvidence[leadCase.id]?.lastEvent || "等待首例 AI 分析完成" },
+    { label: "报告材料", value: `${demoState.exportHistory.length} 条`, detail: `${reviewedCases.length} 条复核意见` },
+    { label: "验收进度", value: `${acceptanceScore}%`, detail: `${doneAcceptanceCount}/${acceptanceItems.length} 项已检查` }
+  ];
+
+  const generateBriefing = () => {
+    const stamped = `${new Date().toLocaleString("zh-CN", { hour12: false })} · 交付简报 · ${selectedPilotCases.length} 例 · 验收 ${acceptanceScore}%`;
+    onDemoStateChange((state) => ({
+      ...state,
+      exportHistory: [`${stamped} · ${state.exportFormat}`, ...state.exportHistory].slice(0, 5),
+      handoffHistory: [stamped, ...state.handoffHistory].slice(0, 4),
+      lastAction: "已生成试点交付简报，并加入导出留痕。"
+    }));
+  };
+
+  const copyBriefing = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(briefingText);
+      onDemoStateChange((state) => ({ ...state, lastAction: "已复制试点交付简报摘要。" }));
+    } catch {
+      onDemoStateChange((state) => ({ ...state, lastAction: "浏览器阻止复制简报，可直接查看页面摘要。" }));
+    }
+  };
+
+  return (
+    <section className="pilot-handoff-briefing" aria-label="试点交付简报">
+      <div className="handoff-briefing-head">
+        <div>
+          <span className="eyebrow">Handoff Pack</span>
+          <strong>试点交付简报</strong>
+          <small>把病例、影像、报告、材料和验收状态整理成可交接摘要。</small>
+        </div>
+        <div className="handoff-briefing-actions">
+          <button className="secondary-button icon-text" type="button" onClick={copyBriefing}>
+            <FileDown size={16} />
+            复制摘要
+          </button>
+          <button className="primary-button icon-text" type="button" onClick={generateBriefing}>
+            <Download size={16} />
+            生成简报
+          </button>
+        </div>
+      </div>
+
+      <div className="handoff-briefing-grid">
+        <article className="handoff-summary-card">
+          <span className="eyebrow">Brief</span>
+          <h3>{demoState.pilotOrganization}</h3>
+          <p>{demoState.pilotNeed}</p>
+          <div>
+            <span>{demoState.pilotTarget}</span>
+            <span>{demoState.deploymentPath}</span>
+            <span>{demoState.reportTemplate}</span>
+          </div>
+        </article>
+
+        <div className="handoff-evidence-grid">
+          {evidenceCards.map((item) => (
+            <article key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.detail}</small>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <div className="handoff-preview-grid">
+        <div className="handoff-text-preview">
+          {briefingLines.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </div>
+        <div className="handoff-gap-column">
+          <div>
+            <span className="eyebrow">Ready</span>
+            {(readyAcceptance.length ? readyAcceptance : acceptanceItems.slice(0, 2)).map((item) => (
+              <p className={item.done ? "done" : ""} key={item.id}>
+                <CheckCircle2 size={16} />
+                {item.label}
+              </p>
+            ))}
+          </div>
+          <div>
+            <span className="eyebrow">Next</span>
+            {(missingAcceptance.length ? missingAcceptance : [{ id: "handoffComplete", label: "交付复盘", detail: "准备进入下一轮扩展", done: true, mode: "auto" }]).map((item) => (
+              <p className={item.done ? "done" : ""} key={item.id}>
+                {item.done ? <CheckCircle2 size={16} /> : <Clock3 size={16} />}
+                {item.label}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="handoff-history">
+        <div>
+          <span className="eyebrow">Handoff Trail</span>
+          <strong>简报留痕</strong>
+        </div>
+        {demoState.handoffHistory.length ? (
+          demoState.handoffHistory.map((item) => <span key={item}>{item}</span>)
+        ) : (
+          <span>尚未生成交付简报，生成后会保留最近 4 条记录。</span>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function PilotPage({
   demoState,
   onDemoStateChange
@@ -2590,6 +2739,7 @@ function PilotPage({
       pilotRemark: defaults.pilotRemark,
       pilotSubmissionTrail: defaults.pilotSubmissionTrail,
       pilotAcceptanceChecks: defaults.pilotAcceptanceChecks,
+      handoffHistory: defaults.handoffHistory,
       lastAction: "已恢复默认试点沙盒配置。"
     }));
   };
@@ -2910,6 +3060,15 @@ function PilotPage({
                 ))}
               </div>
             </div>
+
+            <PilotHandoffBriefing
+              acceptanceItems={acceptanceItems}
+              acceptanceScore={acceptanceScore}
+              checkedMaterials={checkedMaterials}
+              demoState={demoState}
+              onDemoStateChange={onDemoStateChange}
+              selectedPilotCases={selectedPilotCases}
+            />
           </div>
 
           <div className="form-grid">
