@@ -3010,6 +3010,64 @@ main {
   color: #5eead4;
 }
 
+.pilot-delivery-panel {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(125, 211, 252, 0.16), rgba(20, 184, 166, 0.08)),
+    rgba(255, 255, 255, 0.08);
+}
+
+.pilot-readiness-meter {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(125, 211, 252, 0.3);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(8, 17, 31, 0.82) 54%, transparent 56%),
+    conic-gradient(from 0deg, #5eead4, #38bdf8 var(--readiness), rgba(255, 255, 255, 0.13) 0);
+  box-shadow: inset 0 0 24px rgba(94, 234, 212, 0.12);
+}
+
+.pilot-readiness-meter strong,
+.pilot-readiness-meter span {
+  grid-area: 1 / 1;
+}
+
+.pilot-readiness-meter strong {
+  color: white;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.pilot-readiness-meter span {
+  align-self: end;
+  margin-bottom: 18px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.pilot-delivery-panel > div:last-child > strong {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 22px;
+}
+
+.pilot-delivery-panel p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3031,6 +3089,20 @@ main {
 
 .pilot-form-header p {
   color: var(--muted);
+}
+
+.pilot-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pilot-header-actions .secondary-button {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 .pilot-form-status {
@@ -3216,6 +3288,78 @@ main {
   color: #0ea5e9;
 }
 
+.pilot-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 14px;
+  border-radius: 18px;
+  line-height: 1.5;
+}
+
+.pilot-alert svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.pilot-alert strong,
+.pilot-alert span {
+  display: block;
+}
+
+.pilot-alert strong {
+  color: #0f172a;
+}
+
+.pilot-alert span {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.pilot-alert.warning {
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.pilot-alert.ready {
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.pilot-delivery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pilot-delivery-grid article {
+  min-width: 0;
+  min-height: 108px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.pilot-delivery-grid span,
+.pilot-delivery-grid small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.42;
+}
+
+.pilot-delivery-grid strong {
+  display: block;
+  margin: 10px 0 7px;
+  color: #0f172a;
+  font-size: 19px;
+  line-height: 1.15;
+}
+
 .pilot-form label {
   display: grid;
   gap: 8px;
@@ -3251,6 +3395,32 @@ main {
 
 .submit-button {
   justify-self: start;
+}
+
+.pilot-submission-trail {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.74);
+}
+
+.pilot-submission-trail > div strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.pilot-submission-trail > span {
+  display: block;
+  padding: 10px 12px;
+  color: #475569;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .submit-success {
@@ -3399,6 +3569,7 @@ main {
   .report-signoff-flow,
   .report-workbench-summary,
   .report-template-options,
+  .pilot-delivery-grid,
   .pilot-option-grid,
   .pilot-case-package > div:last-child {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3500,6 +3671,7 @@ main {
   .report-signoff-flow,
   .report-template-options,
   .pilot-stepper,
+  .pilot-delivery-grid,
   .pilot-option-grid,
   .pilot-case-package > div:last-child,
   .preview-meta-grid,
@@ -3573,6 +3745,15 @@ main {
 
   .report-review-head {
     flex-direction: column;
+  }
+
+  .pilot-header-actions {
+    justify-content: flex-start;
+  }
+
+  .pilot-header-actions .secondary-button,
+  .pilot-header-actions .pilot-form-status {
+    min-height: 36px;
   }
 
   .partner-signal-grid {

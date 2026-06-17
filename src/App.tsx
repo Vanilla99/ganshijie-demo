@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import {
   Activity,
+  AlertTriangle,
   ArrowRight,
   BarChart3,
   BrainCircuit,
@@ -28,7 +29,7 @@ import {
   UploadCloud,
   X
 } from "lucide-react";
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -150,6 +151,15 @@ type DemoState = {
   reviewNotes: Record<string, string>;
   exportFormat: string;
   exportHistory: string[];
+  pilotOrganization: string;
+  pilotContact: string;
+  pilotPhone: string;
+  pilotDepartment: string;
+  pilotHospitalLevel: string;
+  pilotMonthlyVolume: string;
+  pilotNeed: string;
+  pilotRemark: string;
+  pilotSubmissionTrail: string[];
   lastAction: string;
 };
 
@@ -179,6 +189,15 @@ function createDefaultDemoState(): DemoState {
     reviewNotes: {},
     exportFormat: exportFormats[0],
     exportHistory: [],
+    pilotOrganization: "云南省某某医院",
+    pilotContact: "李主任",
+    pilotPhone: "138-0000-2026",
+    pilotDepartment: "肝胆胰外科 / 影像科",
+    pilotHospitalLevel: "三甲医院",
+    pilotMonthlyVolume: "每月 80 例",
+    pilotNeed: "希望先验证术前规划、血管邻近风险提示与 MDT 会前材料生成。",
+    pilotRemark: "优先使用脱敏病例包完成 7 天首例闭环演示。",
+    pilotSubmissionTrail: [],
     lastAction: "已载入默认试点沙盒配置。"
   };
 }
@@ -190,6 +209,7 @@ function mergeDemoState(value: Partial<DemoState>): DemoState {
     ...value,
     selectedPilotCaseIds: Array.isArray(value.selectedPilotCaseIds) && value.selectedPilotCaseIds.length ? value.selectedPilotCaseIds : fallback.selectedPilotCaseIds,
     exportHistory: Array.isArray(value.exportHistory) ? value.exportHistory : fallback.exportHistory,
+    pilotSubmissionTrail: Array.isArray(value.pilotSubmissionTrail) ? value.pilotSubmissionTrail : fallback.pilotSubmissionTrail,
     materialChecklist: { ...fallback.materialChecklist, ...(value.materialChecklist || {}) },
     reviewNotes: { ...fallback.reviewNotes, ...(value.reviewNotes || {}) }
   };
@@ -1715,9 +1735,16 @@ function PilotPage({
   const selectedMode = demoState.pilotMode;
   const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
   const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
+  const missingMaterials = materialItems.filter((item) => !demoState.materialChecklist[item]);
   const submitted = Boolean(demoState.pilotSubmittedAt);
   const readinessScore = Math.min(100, Math.round((selectedPilotCases.length ? 28 : 0) + (checkedMaterials / materialItems.length) * 52 + (submitted ? 20 : 0)));
   const activeConfigStep = submitted ? 4 : checkedMaterials === materialItems.length ? 3 : selectedPilotCases.length ? 2 : 1;
+  const highPriorityPilotCases = selectedPilotCases.filter((item) => priorityForCase(item).label === "P1").length;
+  const deliveryStatus = submitted
+    ? { label: "已提交", tone: "ready", detail: "交付沟通路径已生成，可回到影像或报告中心演示首例闭环。" }
+    : missingMaterials.length
+      ? { label: "待补齐", tone: "warning", detail: `仍需确认 ${missingMaterials.join("、")}。` }
+      : { label: "可提交", tone: "ready", detail: "材料、病例包和部署路径已就绪，可生成试点沟通路径。" };
 
   const updatePilot = (patch: Partial<DemoState>) => {
     onDemoStateChange((state) => ({ ...state, ...patch }));
@@ -1746,10 +1773,46 @@ function PilotPage({
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const submittedAt = new Date().toLocaleString("zh-CN", { hour12: false });
+    const trailItem = `${submittedAt} · ${selectedTarget} · ${demoState.deploymentPath} · ${selectedPilotCases.length} 例 · 材料 ${checkedMaterials}/${materialItems.length}`;
     onDemoStateChange((state) => ({
       ...state,
-      lastAction: "试点配置已提交，进入沟通准备状态。",
-      pilotSubmittedAt: new Date().toLocaleString("zh-CN", { hour12: false })
+      lastAction: missingMaterials.length ? "试点配置已保存，等待补齐材料清单。" : "试点配置已提交，进入沟通准备状态。",
+      pilotSubmittedAt: submittedAt,
+      pilotSubmissionTrail: [trailItem, ...state.pilotSubmissionTrail].slice(0, 4)
+    }));
+  };
+
+  const resetPilotSandbox = () => {
+    const defaults = createDefaultDemoState();
+    onDemoStateChange((state) => ({
+      ...state,
+      activeCaseId: defaults.activeCaseId,
+      selectedPilotCaseIds: defaults.selectedPilotCaseIds,
+      pilotTarget: defaults.pilotTarget,
+      pilotMode: defaults.pilotMode,
+      deploymentPath: defaults.deploymentPath,
+      casePackage: defaults.casePackage,
+      materialChecklist: defaults.materialChecklist,
+      pilotSubmittedAt: defaults.pilotSubmittedAt,
+      pilotOrganization: defaults.pilotOrganization,
+      pilotContact: defaults.pilotContact,
+      pilotPhone: defaults.pilotPhone,
+      pilotDepartment: defaults.pilotDepartment,
+      pilotHospitalLevel: defaults.pilotHospitalLevel,
+      pilotMonthlyVolume: defaults.pilotMonthlyVolume,
+      pilotNeed: defaults.pilotNeed,
+      pilotRemark: defaults.pilotRemark,
+      pilotSubmissionTrail: defaults.pilotSubmissionTrail,
+      lastAction: "已恢复默认试点沙盒配置。"
+    }));
+  };
+
+  const withdrawSubmission = () => {
+    onDemoStateChange((state) => ({
+      ...state,
+      pilotSubmittedAt: "",
+      lastAction: "已撤回本次试点提交，配置仍保留在沙盒中。"
     }));
   };
 
@@ -1882,6 +1945,18 @@ function PilotPage({
               </p>
             ))}
           </div>
+
+          <div className="pilot-delivery-panel">
+            <div className="pilot-readiness-meter" style={{ "--readiness": `${readinessScore}%` } as CSSProperties}>
+              <strong>{readinessScore}%</strong>
+              <span>准备度</span>
+            </div>
+            <div>
+              <span className="eyebrow">Delivery Status</span>
+              <strong>{deliveryStatus.label}</strong>
+              <p>{deliveryStatus.detail}</p>
+            </div>
+          </div>
         </aside>
 
         <form className="pilot-form" onSubmit={submit}>
@@ -1891,7 +1966,18 @@ function PilotPage({
               <h2>提交试点需求</h2>
               <p>我们会基于当前选择准备试点沟通：{selectedTarget} / {selectedMode}。</p>
             </div>
-            <span className="pilot-form-status">{submitted ? "已进入准备" : "1 个工作日响应"}</span>
+            <div className="pilot-header-actions">
+              {submitted ? (
+                <button className="secondary-button icon-text" type="button" onClick={withdrawSubmission}>
+                  撤回提交
+                </button>
+              ) : null}
+              <button className="secondary-button icon-text" type="button" onClick={resetPilotSandbox}>
+                <RefreshCw size={16} />
+                恢复默认
+              </button>
+              <span className="pilot-form-status">{submitted ? "已进入准备" : "1 个工作日响应"}</span>
+            </div>
           </div>
 
           <div className="pilot-configurator">
@@ -1976,28 +2062,51 @@ function PilotPage({
                 ))}
               </div>
             </div>
+
+            <div className={`pilot-alert ${deliveryStatus.tone}`}>
+              {missingMaterials.length ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+              <div>
+                <strong>{deliveryStatus.label === "待补齐" ? "材料缺口提示" : "交付配置就绪"}</strong>
+                <span>{deliveryStatus.detail}</span>
+              </div>
+            </div>
+
+            <div className="pilot-delivery-grid">
+              {[
+                { label: "部署路径", value: demoState.deploymentPath, detail: demoState.casePackage },
+                { label: "病例优先级", value: `${highPriorityPilotCases} 例 P1`, detail: `${selectedPilotCases.length} 例进入首批包` },
+                { label: "报告输出", value: demoState.reportTemplate, detail: `${demoState.exportFormat} · ${demoState.reviewTone}` },
+                { label: "最近动作", value: demoState.lastAction ? "已同步" : "待操作", detail: demoState.lastAction || "操作后会同步到沙盒状态" }
+              ].map((item) => (
+                <article key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                  <small>{item.detail}</small>
+                </article>
+              ))}
+            </div>
           </div>
 
           <div className="form-grid">
             <label>
               单位名称
-              <input required placeholder="例如：云南省某某医院" />
+              <input required value={demoState.pilotOrganization} onChange={(event) => updatePilot({ pilotOrganization: event.target.value })} placeholder="例如：云南省某某医院" />
             </label>
             <label>
               联系人
-              <input required placeholder="请输入联系人姓名" />
+              <input required value={demoState.pilotContact} onChange={(event) => updatePilot({ pilotContact: event.target.value })} placeholder="请输入联系人姓名" />
             </label>
             <label>
               联系方式
-              <input required placeholder="手机号 / 邮箱" />
+              <input required value={demoState.pilotPhone} onChange={(event) => updatePilot({ pilotPhone: event.target.value })} placeholder="手机号 / 邮箱" />
             </label>
             <label>
               所属科室
-              <input placeholder="影像科 / 肝胆外科" />
+              <input value={demoState.pilotDepartment} onChange={(event) => updatePilot({ pilotDepartment: event.target.value })} placeholder="影像科 / 肝胆外科" />
             </label>
             <label>
               医院级别
-              <select defaultValue="三甲医院">
+              <select value={demoState.pilotHospitalLevel} onChange={(event) => updatePilot({ pilotHospitalLevel: event.target.value })}>
                 <option>三甲医院</option>
                 <option>三级医院</option>
                 <option>基层医院</option>
@@ -2007,21 +2116,33 @@ function PilotPage({
             </label>
             <label>
               预计病例量
-              <input placeholder="例如：每月 80 例" />
+              <input value={demoState.pilotMonthlyVolume} onChange={(event) => updatePilot({ pilotMonthlyVolume: event.target.value })} placeholder="例如：每月 80 例" />
             </label>
           </div>
           <label>
             合作需求
-            <textarea placeholder="请描述希望验证或接入的场景，例如术前规划、远程会诊、科研教学等。" />
+            <textarea value={demoState.pilotNeed} onChange={(event) => updatePilot({ pilotNeed: event.target.value })} placeholder="请描述希望验证或接入的场景，例如术前规划、远程会诊、科研教学等。" />
           </label>
           <label>
             备注
-            <textarea placeholder="其他补充信息" />
+            <textarea value={demoState.pilotRemark} onChange={(event) => updatePilot({ pilotRemark: event.target.value })} placeholder="其他补充信息" />
           </label>
           <button className="primary-button submit-button" type="submit">
             提交申请
             <Send size={18} />
           </button>
+
+          <div className="pilot-submission-trail">
+            <div>
+              <span className="eyebrow">Submission Trail</span>
+              <strong>提交记录</strong>
+            </div>
+            {demoState.pilotSubmissionTrail.length ? (
+              demoState.pilotSubmissionTrail.map((item) => <span key={item}>{item}</span>)
+            ) : (
+              <span>尚未提交，提交后会保留最近 4 条试点沟通记录。</span>
+            )}
+          </div>
 
           {submitted ? (
             <motion.div className="submit-success" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
