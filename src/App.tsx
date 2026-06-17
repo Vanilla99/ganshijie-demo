@@ -69,6 +69,25 @@ import type { ClinicalCase } from "./data";
 
 const chartColors = ["#0ea5e9", "#14b8a6", "#6366f1", "#f59e0b", "#94a3b8"];
 
+const pilotHighlights = [
+  { label: "首例闭环", value: featuredCase.processingTime, detail: "DICOM 解析到报告草稿" },
+  { label: "分割置信度", value: metricValue(featuredCase, "分割置信度"), detail: "肝脏 / 肿瘤 / 血管结构" },
+  { label: "试点周期", value: "7 天", detail: "沙盒部署与首批病例验证" }
+];
+
+const pilotJourney = [
+  { step: "01", icon: UploadCloud, title: "安全接入首批影像", text: "以脱敏 DICOM 或演示样例启动，完成院内场景、科室角色和报告模板确认。" },
+  { step: "02", icon: BrainCircuit, title: "AI 分割与三维重建", text: "自动生成肝脏、肿瘤、血管结构，保留医生可复核的切片、指标和模型视角。" },
+  { step: "03", icon: FileText, title: "报告草稿与临床复核", text: "沉淀体积、最大径、血管邻近距离和风险提示，形成可讨论的辅助报告。" },
+  { step: "04", icon: ShieldCheck, title: "试点评估与扩展", text: "按病例量、处理耗时、复核反馈和科室协作记录，评估正式接入路径。" }
+];
+
+const pilotAssurances = [
+  "演示环境不接触真实院内系统",
+  "支持脱敏数据与模拟病例并行验证",
+  "可按医院角色配置影像、报告与会诊视图"
+];
+
 type RouteState = {
   path: string;
   params: URLSearchParams;
@@ -1035,6 +1054,8 @@ function PartnersPage() {
 
 function PilotPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState(pilotTargets[0]);
+  const [selectedMode, setSelectedMode] = useState(cooperationModes[0]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1043,19 +1064,102 @@ function PilotPage() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Pilot Program"
-        title="合作试点申请"
-        body="面向医院、影像科、肝胆外科、远程医疗平台和医学院校，支持医院试点、数据接入、科研教学和定制部署。"
-      />
+      <section className="pilot-hero">
+        <div className="pilot-hero-copy">
+          <span className="eyebrow">Pilot Program</span>
+          <h1>7 天跑通首例 AI 影像试点</h1>
+          <p>
+            面向医院、影像科、肝胆外科、远程医疗平台和医学院校，把病例选择、影像分割、三维重建、风险评估和辅助报告串成一条可演示、可复核的试点链路。
+          </p>
+          <div className="hero-actions">
+            <a className="primary-button" href={caseHref("/imaging", featuredCase)}>
+              启动病例闭环
+              <ArrowRight size={18} />
+            </a>
+            <a className="secondary-button" href={caseHref("/reports", featuredCase, "generated=1")}>
+              查看报告样例
+              <FileText size={17} />
+            </a>
+          </div>
+          <div className="pilot-kpi-row">
+            {pilotHighlights.map((item) => (
+              <article key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.detail}</small>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <motion.div
+          className="pilot-hero-visual"
+          initial={{ opacity: 0, y: 18, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.55 }}
+        >
+          <div className="pilot-showcase-stage">
+            <MedicalScene compact liverOpacity={0.52} />
+            <div className="pilot-scan-overlay">
+              <span>Active Case</span>
+              <strong>{featuredCase.id}</strong>
+              <small>{featuredCase.lesion} / {featuredCase.risk}</small>
+            </div>
+          </div>
+          <div className="pilot-loop-panel">
+            {["病例", "影像", "AI 分析", "报告"].map((item, index) => (
+              <div className={index === 2 ? "active" : ""} key={item}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{item}</strong>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
+      <section className="pilot-journey" aria-label="试点闭环路径">
+        {pilotJourney.map(({ icon: Icon, ...item }) => (
+          <article key={item.step}>
+            <div>
+              <span>{item.step}</span>
+              <Icon size={22} />
+            </div>
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </article>
+        ))}
+      </section>
 
       <section className="pilot-layout">
         <aside className="pilot-aside">
+          <div className="pilot-aside-header">
+            <span className="eyebrow">试点配置</span>
+            <h2>{selectedTarget} · {selectedMode}</h2>
+            <p>当前组合会作为提交后的沟通重点，用于匹配演示病例、部署方式和报告模板。</p>
+          </div>
+
+          <a className="pilot-case-link" href={caseHref("/imaging", featuredCase)}>
+            <img src={featuredCase.snapshot} alt={`${featuredCase.id} 试点演示病例`} />
+            <div>
+              <span>演示病例</span>
+              <strong>{featuredCase.id}</strong>
+              <small>{featuredCase.patient} · {featuredCase.type} · {featuredCase.risk}</small>
+            </div>
+            <ArrowRight size={18} />
+          </a>
+
           <div>
             <span className="eyebrow">合作对象</span>
             <div className="chip-cloud">
               {pilotTargets.map((target) => (
-                <span key={target}>{target}</span>
+                <button
+                  className={selectedTarget === target ? "active" : ""}
+                  key={target}
+                  type="button"
+                  onClick={() => setSelectedTarget(target)}
+                >
+                  {target}
+                </button>
               ))}
             </div>
           </div>
@@ -1063,16 +1167,35 @@ function PilotPage() {
             <span className="eyebrow">合作方式</span>
             <div className="mode-list">
               {cooperationModes.map((mode) => (
-                <p key={mode}>
+                <button className={selectedMode === mode ? "active" : ""} key={mode} type="button" onClick={() => setSelectedMode(mode)}>
                   <Handshake size={17} />
                   {mode}
-                </p>
+                </button>
               ))}
             </div>
+          </div>
+
+          <div className="pilot-assurance">
+            <span className="eyebrow">数据与权限</span>
+            {pilotAssurances.map((item) => (
+              <p key={item}>
+                <CheckCircle2 size={16} />
+                {item}
+              </p>
+            ))}
           </div>
         </aside>
 
         <form className="pilot-form" onSubmit={submit}>
+          <div className="pilot-form-header">
+            <div>
+              <span className="eyebrow">Start Pilot</span>
+              <h2>提交试点需求</h2>
+              <p>我们会基于当前选择准备试点沟通：{selectedTarget} / {selectedMode}。</p>
+            </div>
+            <span className="pilot-form-status">1 个工作日响应</span>
+          </div>
+
           <div className="form-grid">
             <label>
               单位名称
@@ -1121,7 +1244,12 @@ function PilotPage() {
           {submitted ? (
             <motion.div className="submit-success" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <CheckCircle2 size={20} />
-              已收到您的试点申请，项目团队将在 1 个工作日内联系您。
+              <div>
+                <strong>已生成试点沟通路径</strong>
+                <span>团队将在 1 个工作日内联系您，也可以先进入病例闭环演示。</span>
+              </div>
+              <a href={caseHref("/imaging", featuredCase)}>影像分析</a>
+              <a href={caseHref("/reports", featuredCase, "generated=1")}>辅助报告</a>
             </motion.div>
           ) : null}
         </form>
