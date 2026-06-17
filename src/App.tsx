@@ -20,6 +20,7 @@ import {
   Menu,
   Microscope,
   PanelTop,
+  Plus,
   RefreshCw,
   Rotate3D,
   Send,
@@ -415,6 +416,97 @@ function CaseOverviewBand({ selectedCase, mode = "analysis" }: { selectedCase: C
         <a className="primary-button" href={caseHref("/reports", selectedCase, "generated=1")}>
           报告预览
         </a>
+      </div>
+    </section>
+  );
+}
+
+function DemoStatusHub({
+  currentPath,
+  demoState,
+  onDemoStateChange,
+  selectedCase
+}: {
+  currentPath: string;
+  demoState: DemoState;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+  selectedCase: ClinicalCase;
+}) {
+  const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
+  const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
+  const readinessScore = Math.min(100, Math.round((selectedPilotCases.length ? 28 : 0) + (checkedMaterials / materialItems.length) * 52 + (demoState.pilotSubmittedAt ? 20 : 0)));
+  const priority = priorityForCase(selectedCase);
+  const activeInPilotPackage = demoState.selectedPilotCaseIds.includes(selectedCase.id);
+  const deliveryLabel = demoState.pilotSubmittedAt ? "已提交" : checkedMaterials === materialItems.length ? "可提交" : "待补齐";
+
+  const toggleActiveCaseInPilotPackage = () => {
+    onDemoStateChange((state) => {
+      const selected = state.selectedPilotCaseIds.includes(selectedCase.id);
+      if (selected && state.selectedPilotCaseIds.length === 1) {
+        return {
+          ...state,
+          activeCaseId: selectedCase.id,
+          lastAction: `试点病例包至少保留 1 例，当前病例 ${selectedCase.id} 已保留。`
+        };
+      }
+      const nextCaseIds = selected ? state.selectedPilotCaseIds.filter((id) => id !== selectedCase.id) : [...state.selectedPilotCaseIds, selectedCase.id];
+      return {
+        ...state,
+        activeCaseId: selectedCase.id,
+        selectedPilotCaseIds: nextCaseIds,
+        lastAction: selected ? `已从试点病例包移除当前病例 ${selectedCase.id}。` : `已将当前病例 ${selectedCase.id} 加入试点病例包。`
+      };
+    });
+  };
+
+  return (
+    <section className="demo-status-hub" aria-label="当前演示状态">
+      <a className="hub-active-case" href={caseHref("/imaging", selectedCase)}>
+        <img src={selectedCase.snapshot} alt={`${selectedCase.id} 当前演示病例`} />
+        <div>
+          <span className="eyebrow">Active Case</span>
+          <strong>{selectedCase.id}</strong>
+          <small>{selectedCase.lesion} · {selectedCase.risk}</small>
+        </div>
+      </a>
+
+      <div className="hub-signal-grid">
+        {[
+          { label: "复核优先级", value: priority.label, detail: priority.detail },
+          { label: "试点病例包", value: `${selectedPilotCases.length} 例`, detail: demoState.casePackage },
+          { label: "报告模板", value: demoState.reportTemplate, detail: `${demoState.exportFormat} · ${demoState.reviewTone}` },
+          { label: "交付准备度", value: `${readinessScore}%`, detail: `${deliveryLabel} · 材料 ${checkedMaterials}/${materialItems.length}` }
+        ].map((item) => (
+          <article key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </article>
+        ))}
+      </div>
+
+      <div className="hub-actions">
+        <a className={currentPath === "/imaging" ? "active" : ""} href={caseHref("/imaging", selectedCase)}>
+          <Activity size={15} />
+          影像
+        </a>
+        <a className={currentPath === "/reports" ? "active" : ""} href={caseHref("/reports", selectedCase, "generated=1")}>
+          <FileText size={15} />
+          报告
+        </a>
+        <a className={currentPath === "/pilot" ? "active" : ""} href="#/pilot">
+          <ShieldCheck size={15} />
+          试点
+        </a>
+        <button type="button" onClick={toggleActiveCaseInPilotPackage}>
+          {activeInPilotPackage ? <CheckCircle2 size={15} /> : <Plus size={15} />}
+          {activeInPilotPackage ? "已入包" : "入包"}
+        </button>
+      </div>
+
+      <div className="hub-last-action">
+        <span>最近动作</span>
+        <strong>{demoState.lastAction || "等待演示操作同步"}</strong>
       </div>
     </section>
   );
@@ -2184,6 +2276,7 @@ function App() {
     return cases.find((item) => item.id === caseId) || featuredCase;
   }, [demoState.activeCaseId, route]);
   const reportGenerated = route.params.get("generated") === "1";
+  const showDemoStatusHub = currentPath !== "/" && navItems.some((item) => item.path === currentPath);
 
   useEffect(() => {
     if (selectedCase.id === demoState.activeCaseId) return;
@@ -2216,7 +2309,12 @@ function App() {
   return (
     <div className="app-shell">
       <TopNav currentPath={currentPath} />
-      <main>{page}</main>
+      <main>
+        {showDemoStatusHub ? (
+          <DemoStatusHub currentPath={currentPath} demoState={demoState} onDemoStateChange={onDemoStateChange} selectedCase={selectedCase} />
+        ) : null}
+        {page}
+      </main>
       <footer className="site-footer">
         <div>
           <strong>肝视界</strong>

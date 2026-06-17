@@ -526,6 +526,171 @@ main {
   opacity: 0.48;
 }
 
+.demo-status-hub {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.82fr) minmax(0, 1.7fr) auto;
+  gap: 12px;
+  align-items: stretch;
+  margin: 34px 0 0;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0.58)),
+    rgba(255, 255, 255, 0.66);
+  box-shadow: 0 22px 54px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(22px);
+}
+
+.demo-status-hub + .page-header {
+  padding-top: 34px;
+}
+
+.hub-active-case {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px;
+  overflow: hidden;
+  color: white;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(14, 165, 233, 0.24), transparent 48%),
+    linear-gradient(145deg, #07111f, #102341 62%, #123f3a);
+}
+
+.hub-active-case img {
+  width: 72px;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 16px;
+  opacity: 0.82;
+}
+
+.hub-active-case div {
+  min-width: 0;
+}
+
+.hub-active-case .eyebrow {
+  color: #7dd3fc;
+}
+
+.hub-active-case strong,
+.hub-active-case small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-active-case strong {
+  margin: 5px 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.hub-active-case small {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+}
+
+.hub-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.hub-signal-grid article {
+  min-width: 0;
+  min-height: 92px;
+  padding: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.74);
+}
+
+.hub-signal-grid span,
+.hub-signal-grid small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.38;
+}
+
+.hub-signal-grid strong {
+  display: block;
+  margin: 8px 0 6px;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 21px;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(76px, 1fr));
+  gap: 8px;
+  align-content: stretch;
+  min-width: 168px;
+}
+
+.hub-actions a,
+.hub-actions button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 11px;
+  color: #17304a;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  font-size: 13px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.hub-actions a.active,
+.hub-actions button:hover,
+.hub-actions a:hover {
+  color: #075985;
+  border-color: rgba(14, 165, 233, 0.3);
+  background: rgba(14, 165, 233, 0.1);
+}
+
+.hub-last-action {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 11px 13px;
+  border-radius: 18px;
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.hub-last-action span {
+  color: #0b86c5;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.hub-last-action strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .experience-flow {
   display: grid;
   grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
@@ -3535,6 +3700,7 @@ main {
 
   .home-hero,
   .pilot-hero,
+  .demo-status-hub,
   .experience-flow,
   .case-overview-band,
   .partner-signal-band,
@@ -3610,6 +3776,11 @@ main {
   .partner-signal-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .hub-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -3661,6 +3832,7 @@ main {
 
   .stats-grid,
   .pilot-kpi-row,
+  .hub-signal-grid,
   .workbench-controls,
   .workbench-signal-grid,
   .report-workbench-summary,
@@ -3694,6 +3866,33 @@ main {
   .experience-flow {
     padding: 12px;
     overflow: hidden;
+  }
+
+  .demo-status-hub {
+    margin-top: 22px;
+    padding: 12px;
+    border-radius: 24px;
+  }
+
+  .demo-status-hub + .page-header {
+    padding-top: 34px;
+  }
+
+  .hub-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hub-actions a,
+  .hub-actions button {
+    min-height: 40px;
+  }
+
+  .hub-last-action {
+    grid-template-columns: 1fr;
+  }
+
+  .hub-last-action strong {
+    white-space: normal;
   }
 
   .experience-flow-head,
@@ -3827,6 +4026,7 @@ main {
   .report-template-panel,
   .pilot-hero-visual,
   .experience-flow,
+  .demo-status-hub,
   .experience-flow-head,
   .experience-flow-rail a,
   .case-overview-band,
