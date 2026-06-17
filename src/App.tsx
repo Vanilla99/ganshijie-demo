@@ -132,6 +132,11 @@ const reportTemplates = ["术前规划版", "MDT 讨论版", "科研教学版"];
 const reviewTones = ["医生复核", "MDT 建议", "教学标注"];
 const reportStatusFilters = ["全部报告", "已确认", "待复核", "已归档", "生成中"];
 const exportFormats = ["PDF 报告", "PNG 截图", "MDT 摘要"];
+const manualAcceptanceItems = [
+  { id: "sandboxDryRun", label: "沙盒联调", detail: "确认部署路径、病例包和演示账号可按计划运行" },
+  { id: "mdtBriefing", label: "MDT 演示排期", detail: "确认会前材料包、参会角色和演示时间" },
+  { id: "handoffReview", label: "交付复盘", detail: "确认首例闭环指标、反馈记录和下一步扩展路径" }
+] as const;
 
 type DemoState = {
   activeCaseId: string;
@@ -161,6 +166,7 @@ type DemoState = {
   pilotNeed: string;
   pilotRemark: string;
   pilotSubmissionTrail: string[];
+  pilotAcceptanceChecks: Record<string, boolean>;
   lastAction: string;
 };
 
@@ -210,6 +216,7 @@ function createDefaultDemoState(): DemoState {
     pilotNeed: "希望先验证术前规划、血管邻近风险提示与 MDT 会前材料生成。",
     pilotRemark: "优先使用脱敏病例包完成 7 天首例闭环演示。",
     pilotSubmissionTrail: [],
+    pilotAcceptanceChecks: {},
     lastAction: "已载入默认试点沙盒配置。"
   };
 }
@@ -222,6 +229,7 @@ function mergeDemoState(value: Partial<DemoState>): DemoState {
     selectedPilotCaseIds: Array.isArray(value.selectedPilotCaseIds) && value.selectedPilotCaseIds.length ? value.selectedPilotCaseIds : fallback.selectedPilotCaseIds,
     exportHistory: Array.isArray(value.exportHistory) ? value.exportHistory : fallback.exportHistory,
     pilotSubmissionTrail: Array.isArray(value.pilotSubmissionTrail) ? value.pilotSubmissionTrail : fallback.pilotSubmissionTrail,
+    pilotAcceptanceChecks: { ...fallback.pilotAcceptanceChecks, ...(value.pilotAcceptanceChecks || {}) },
     materialChecklist: { ...fallback.materialChecklist, ...(value.materialChecklist || {}) },
     reviewNotes: { ...fallback.reviewNotes, ...(value.reviewNotes || {}) }
   };
@@ -911,6 +919,56 @@ function priorityForCase(item: ClinicalCase) {
   if (item.risk.includes("高") || item.risk.includes("复核")) return { label: "P1", detail: "优先复核", tone: "high" };
   if (item.risk.includes("中")) return { label: "P2", detail: "医生确认", tone: "medium" };
   return { label: "P3", detail: "常规归档", tone: "low" };
+}
+
+function pilotAcceptanceItemsFor(demoState: DemoState) {
+  const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
+  const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
+  const reviewNoteCount = Object.values(demoState.reviewNotes).filter((value) => value.trim()).length;
+  const highPriorityPilotCases = selectedPilotCases.filter((item) => priorityForCase(item).label === "P1").length;
+
+  return [
+    {
+      id: "casePackageReady",
+      label: "病例包就绪",
+      detail: `${selectedPilotCases.length} 例已纳入试点包，含 ${highPriorityPilotCases} 例 P1 场景`,
+      done: selectedPilotCases.length >= 2 && highPriorityPilotCases > 0,
+      mode: "auto"
+    },
+    {
+      id: "materialsReady",
+      label: "材料齐套",
+      detail: `材料清单 ${checkedMaterials}/${materialItems.length}，用于沟通部署和数据权限`,
+      done: checkedMaterials === materialItems.length,
+      mode: "auto"
+    },
+    {
+      id: "reviewReady",
+      label: "报告复核",
+      detail: `${reviewNoteCount} 条医生复核意见，模板为 ${demoState.reportTemplate}`,
+      done: reviewNoteCount > 0,
+      mode: "auto"
+    },
+    {
+      id: "exportTrailReady",
+      label: "导出留痕",
+      detail: `${demoState.exportHistory.length} 条报告导出或 MDT 材料记录`,
+      done: demoState.exportHistory.length > 0,
+      mode: "auto"
+    },
+    {
+      id: "submissionReady",
+      label: "提交记录",
+      detail: demoState.pilotSubmittedAt ? `${demoState.pilotSubmittedAt} 已生成沟通路径` : "等待提交试点配置",
+      done: Boolean(demoState.pilotSubmittedAt),
+      mode: "auto"
+    },
+    ...manualAcceptanceItems.map((item) => ({
+      ...item,
+      done: Boolean(demoState.pilotAcceptanceChecks[item.id]),
+      mode: "manual"
+    }))
+  ] as const;
 }
 
 function CaseWorkbench({
@@ -1983,6 +2041,9 @@ function PilotPage({
   const readinessScore = Math.min(100, Math.round((selectedPilotCases.length ? 28 : 0) + (checkedMaterials / materialItems.length) * 52 + (submitted ? 20 : 0)));
   const activeConfigStep = submitted ? 4 : checkedMaterials === materialItems.length ? 3 : selectedPilotCases.length ? 2 : 1;
   const highPriorityPilotCases = selectedPilotCases.filter((item) => priorityForCase(item).label === "P1").length;
+  const acceptanceItems = pilotAcceptanceItemsFor(demoState);
+  const acceptedItems = acceptanceItems.filter((item) => item.done).length;
+  const acceptanceScore = Math.round((acceptedItems / acceptanceItems.length) * 100);
   const deliveryStatus = submitted
     ? { label: "已提交", tone: "ready", detail: "交付沟通路径已生成，可回到影像或报告中心演示首例闭环。" }
     : missingMaterials.length
@@ -2010,6 +2071,17 @@ function PilotPage({
         activeCaseId: caseId,
         lastAction: selected ? `试点病例包已移除 ${caseId}。` : `试点病例包已加入 ${caseId}。`,
         selectedPilotCaseIds: nextCaseIds.length ? nextCaseIds : [caseId]
+      };
+    });
+  };
+
+  const toggleAcceptanceCheck = (itemId: string, label: string) => {
+    onDemoStateChange((state) => {
+      const checked = Boolean(state.pilotAcceptanceChecks[itemId]);
+      return {
+        ...state,
+        lastAction: `${label}${checked ? "已撤销验收" : "已标记验收"}。`,
+        pilotAcceptanceChecks: { ...state.pilotAcceptanceChecks, [itemId]: !checked }
       };
     });
   };
@@ -2047,6 +2119,7 @@ function PilotPage({
       pilotNeed: defaults.pilotNeed,
       pilotRemark: defaults.pilotRemark,
       pilotSubmissionTrail: defaults.pilotSubmissionTrail,
+      pilotAcceptanceChecks: defaults.pilotAcceptanceChecks,
       lastAction: "已恢复默认试点沙盒配置。"
     }));
   };
@@ -2327,6 +2400,45 @@ function PilotPage({
                   <small>{item.detail}</small>
                 </article>
               ))}
+            </div>
+
+            <div className="pilot-acceptance-board">
+              <div className="pilot-acceptance-head">
+                <div>
+                  <span className="eyebrow">Acceptance Gate</span>
+                  <strong>试点交付验收 · {acceptedItems}/{acceptanceItems.length}</strong>
+                  <small>自动证据来自病例、材料、报告和提交记录；人工项用于标记联调与复盘。</small>
+                </div>
+                <div className="acceptance-score" style={{ "--acceptance": `${acceptanceScore}%` } as CSSProperties}>
+                  <span>{acceptanceScore}%</span>
+                  <small>验收进度</small>
+                </div>
+              </div>
+              <div className="pilot-acceptance-list">
+                {acceptanceItems.map((item) => (
+                  <article className={item.done ? "done" : ""} key={item.id}>
+                    <div>
+                      {item.done ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}
+                      <div>
+                        <strong>{item.label}</strong>
+                        <small>{item.detail}</small>
+                      </div>
+                    </div>
+                    {item.mode === "manual" ? (
+                      <button
+                        aria-pressed={item.done}
+                        className={item.done ? "checked" : ""}
+                        type="button"
+                        onClick={() => toggleAcceptanceCheck(item.id, item.label)}
+                      >
+                        {item.done ? "撤销" : "标记"}
+                      </button>
+                    ) : (
+                      <span>{item.done ? "已达标" : "待证据"}</span>
+                    )}
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
 
