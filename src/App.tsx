@@ -838,6 +838,8 @@ function DashboardPage({
         ))}
       </section>
 
+      <PilotCommandCenter demoState={demoState} onDemoStateChange={onDemoStateChange} selectedPilotCases={selectedPilotCases} />
+
       <CaseWorkbench
         demoState={demoState}
         filteredCases={filteredCases}
@@ -948,6 +950,86 @@ function modelViewLabel(view: "all" | "liver" | "tumor" | "vessel") {
   return "全部结构";
 }
 
+function pilotCommandActionFor(demoState: DemoState) {
+  const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
+  const priorityCase = selectedPilotCases.find((item) => priorityForCase(item).label === "P1") || selectedPilotCases[0] || featuredCase;
+  const highPriorityPilotCases = selectedPilotCases.filter((item) => priorityForCase(item).label === "P1").length;
+  const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
+  const completedImagingCases = selectedPilotCases.filter((item) => demoState.imagingEvidence[item.id]?.status === "completed").length;
+  const reviewNoteCount = Object.values(demoState.reviewNotes).filter((value) => value.trim()).length;
+  const uncheckedManualItem = manualAcceptanceItems.find((item) => !demoState.pilotAcceptanceChecks[item.id]);
+
+  if (selectedPilotCases.length < 2 || highPriorityPilotCases === 0) {
+    return {
+      label: "扩充病例包",
+      detail: "纳入至少 2 例病例，并保留 1 例 P1 场景",
+      href: "#/dashboard",
+      tone: "warning"
+    };
+  }
+
+  if (completedImagingCases === 0) {
+    return {
+      label: "完成影像演示",
+      detail: `${priorityCase.id} 需要 AI 分析与三维查看留痕`,
+      href: caseHref("/imaging", priorityCase),
+      tone: "active"
+    };
+  }
+
+  if (checkedMaterials < materialItems.length) {
+    return {
+      label: "补齐试点材料",
+      detail: `材料清单 ${checkedMaterials}/${materialItems.length}，优先补齐权限和排期`,
+      href: "#/pilot",
+      tone: "warning"
+    };
+  }
+
+  if (reviewNoteCount === 0) {
+    return {
+      label: "补充医生复核",
+      detail: `${priorityCase.id} 需要复核意见进入报告闭环`,
+      href: caseHref("/reports", priorityCase, "generated=1"),
+      tone: "active"
+    };
+  }
+
+  if (demoState.exportHistory.length === 0) {
+    return {
+      label: "生成会前材料",
+      detail: "导出报告或加入 MDT 会前材料包",
+      href: caseHref("/reports", priorityCase, "generated=1"),
+      tone: "active"
+    };
+  }
+
+  if (!demoState.pilotSubmittedAt) {
+    return {
+      label: "提交试点配置",
+      detail: "配置已具备沟通条件，进入交付确认",
+      href: "#/pilot",
+      tone: "ready"
+    };
+  }
+
+  if (uncheckedManualItem) {
+    return {
+      label: uncheckedManualItem.label,
+      detail: uncheckedManualItem.detail,
+      href: "#/pilot",
+      tone: "active"
+    };
+  }
+
+  return {
+    label: "进入交付复盘",
+    detail: "病例、影像、报告、材料和提交记录已形成闭环",
+    href: "#/pilot",
+    tone: "ready"
+  };
+}
+
 function pilotAcceptanceItemsFor(demoState: DemoState) {
   const selectedPilotCases = cases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id));
   const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
@@ -1004,6 +1086,171 @@ function pilotAcceptanceItemsFor(demoState: DemoState) {
       mode: "manual"
     }))
   ] as const;
+}
+
+function PilotCommandCenter({
+  demoState,
+  onDemoStateChange,
+  selectedPilotCases
+}: {
+  demoState: DemoState;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+  selectedPilotCases: ClinicalCase[];
+}) {
+  const acceptanceItems = pilotAcceptanceItemsFor(demoState);
+  const doneAcceptanceItems = acceptanceItems.filter((item) => item.done);
+  const acceptanceScore = Math.round((doneAcceptanceItems.length / acceptanceItems.length) * 100);
+  const commandAction = pilotCommandActionFor(demoState);
+  const completedImagingCases = selectedPilotCases.filter((item) => demoState.imagingEvidence[item.id]?.status === "completed");
+  const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
+  const reviewNoteCount = Object.values(demoState.reviewNotes).filter((value) => value.trim()).length;
+  const highPriorityCases = cases.filter((item) => priorityForCase(item).label === "P1");
+  const leadCase = selectedPilotCases.find((item) => priorityForCase(item).label === "P1") || selectedPilotCases[0] || featuredCase;
+  const missingItems = acceptanceItems.filter((item) => !item.done).slice(0, 4);
+  const readinessSignals = [
+    { label: "病例包", value: `${selectedPilotCases.length} 例`, detail: `${highPriorityCases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id)).length} 例 P1` },
+    { label: "影像留痕", value: `${completedImagingCases.length} 例`, detail: "AI 分析完成病例" },
+    { label: "材料清单", value: `${checkedMaterials}/${materialItems.length}`, detail: demoState.deploymentPath },
+    { label: "报告复核", value: `${reviewNoteCount} 条`, detail: `${demoState.reportTemplate} · ${demoState.exportFormat}` }
+  ];
+  const commandTimeline = [
+    { label: "病例包", href: "#/dashboard", done: selectedPilotCases.length >= 2, detail: demoState.casePackage },
+    { label: "影像", href: caseHref("/imaging", leadCase), done: completedImagingCases.length > 0, detail: demoState.imagingEvidence[leadCase.id]?.viewLabel || "等待留痕" },
+    { label: "报告", href: caseHref("/reports", leadCase, "generated=1"), done: reviewNoteCount > 0 && demoState.exportHistory.length > 0, detail: `${reviewNoteCount} 条复核 / ${demoState.exportHistory.length} 条导出` },
+    { label: "试点", href: "#/pilot", done: Boolean(demoState.pilotSubmittedAt), detail: demoState.pilotSubmittedAt || "等待提交" }
+  ];
+
+  const focusHighRiskPackage = () => {
+    const highPriorityIds = highPriorityCases.map((item) => item.id);
+    onDemoStateChange((state) => ({
+      ...state,
+      activeCaseId: highPriorityIds[0] || state.activeCaseId,
+      casePackage: casePackageOptions[0].label,
+      riskFilter: "全部风险",
+      statusFilter: "全部状态",
+      selectedPilotCaseIds: Array.from(new Set([...state.selectedPilotCaseIds, ...highPriorityIds])),
+      lastAction: "已将 P1 高优先级病例纳入试点指挥台。"
+    }));
+  };
+
+  const focusGaps = () => {
+    onDemoStateChange((state) => ({
+      ...state,
+      caseSearch: "",
+      riskFilter: "全部风险",
+      statusFilter: "全部状态",
+      activeCaseId: leadCase.id,
+      lastAction: "已聚焦试点交付缺口，准备补齐演示闭环。"
+    }));
+  };
+
+  return (
+    <section className="pilot-command-center" aria-label="试点演示指挥台">
+      <div className="command-hero-panel">
+        <div className="command-copy">
+          <span className="eyebrow">Pilot Command</span>
+          <h3>试点演示指挥台</h3>
+          <p>{demoState.pilotOrganization} · {demoState.pilotDepartment} · {demoState.pilotMode}</p>
+        </div>
+        <div className="command-score-ring" style={{ "--command-score": `${acceptanceScore}%` } as CSSProperties}>
+          <strong>{acceptanceScore}</strong>
+          <span>Ready</span>
+        </div>
+        <article className={`command-next-card ${commandAction.tone}`}>
+          <span>下一步</span>
+          <strong>{commandAction.label}</strong>
+          <small>{commandAction.detail}</small>
+          <a href={commandAction.href}>
+            继续推进
+            <ArrowRight size={16} />
+          </a>
+        </article>
+      </div>
+
+      <div className="command-signal-grid">
+        {readinessSignals.map((item) => (
+          <article key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </article>
+        ))}
+      </div>
+
+      <div className="command-board-grid">
+        <article className="command-board-card">
+          <div className="mini-heading">
+            <span className="eyebrow">Gaps</span>
+            <strong>交付缺口</strong>
+          </div>
+          <div className="command-gap-list">
+            {(missingItems.length ? missingItems : acceptanceItems.slice(0, 4)).map((item) => (
+              <div className={item.done ? "done" : ""} key={item.id}>
+                {item.done ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="command-board-card">
+          <div className="mini-heading">
+            <span className="eyebrow">Pilot Cases</span>
+            <strong>试点病例阵列</strong>
+          </div>
+          <div className="command-case-stack">
+            {(selectedPilotCases.length ? selectedPilotCases : [featuredCase]).slice(0, 3).map((item) => {
+              const evidence = demoState.imagingEvidence[item.id];
+              const priority = priorityForCase(item);
+              return (
+                <a href={caseHref("/imaging", item)} key={item.id}>
+                  <img src={item.snapshot} alt={`${item.id} 试点病例`} />
+                  <span>
+                    <strong>{item.id}</strong>
+                    <small>{priority.label} · {evidence?.status === "completed" ? evidence.viewLabel : item.status}</small>
+                  </span>
+                </a>
+              );
+            })}
+          </div>
+        </article>
+
+        <article className="command-board-card">
+          <div className="mini-heading">
+            <span className="eyebrow">Runway</span>
+            <strong>交付节奏</strong>
+          </div>
+          <div className="command-timeline">
+            {commandTimeline.map((item, index) => (
+              <a className={item.done ? "done" : ""} href={item.href} key={item.label}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{item.label}</strong>
+                <small>{item.detail}</small>
+              </a>
+            ))}
+          </div>
+        </article>
+      </div>
+
+      <div className="command-action-row">
+        <button className="secondary-button" type="button" onClick={focusHighRiskPackage}>
+          <ShieldCheck size={16} />
+          锁定 P1 病例包
+        </button>
+        <button className="secondary-button" type="button" onClick={focusGaps}>
+          <Sparkles size={16} />
+          聚焦交付缺口
+        </button>
+        <a className="primary-button" href="#/pilot">
+          打开试点沙盒
+          <ArrowRight size={17} />
+        </a>
+      </div>
+    </section>
+  );
 }
 
 function CaseWorkbench({
