@@ -30,7 +30,7 @@ import {
   UploadCloud,
   X
 } from "lucide-react";
-import { type CSSProperties, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, type CSSProperties, type ErrorInfo, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -426,6 +426,76 @@ function SectionTitle({ eyebrow, title, body }: { eyebrow: string; title: string
       <h2>{title}</h2>
       {body ? <p>{body}</p> : null}
     </div>
+  );
+}
+
+type DemoErrorBoundaryProps = {
+  children: ReactNode;
+  resetKey: string;
+};
+
+type DemoErrorBoundaryState = {
+  error: Error | null;
+};
+
+class DemoErrorBoundary extends Component<DemoErrorBoundaryProps, DemoErrorBoundaryState> {
+  state: DemoErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): DemoErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("GanSight demo render failure", error, info.componentStack);
+  }
+
+  componentDidUpdate(previousProps: DemoErrorBoundaryProps) {
+    if (this.state.error && previousProps.resetKey !== this.props.resetKey) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return <RuntimeErrorFallback error={this.state.error} onRetry={() => this.setState({ error: null })} />;
+    }
+
+    return this.props.children;
+  }
+}
+
+function RuntimeErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  const reload = () => window.location.reload();
+  const goHome = () => {
+    window.location.hash = "#/";
+    onRetry();
+  };
+
+  return (
+    <section className="runtime-error">
+      <div className="runtime-error-visual">
+        <AlertTriangle size={30} />
+        <span>Runtime Guard</span>
+      </div>
+      <div>
+        <span className="eyebrow">Demo Recovery</span>
+        <h1>演示状态暂时中断</h1>
+        <p>当前页面渲染时遇到异常，平台已保留导航和恢复入口，便于继续演示或回到默认链路。</p>
+        <code>{error.message || "Unknown render error"}</code>
+        <div className="runtime-error-actions">
+          <button className="primary-button" type="button" onClick={onRetry}>
+            重新尝试
+            <RefreshCw size={17} />
+          </button>
+          <button className="secondary-button" type="button" onClick={goHome}>
+            返回首页
+          </button>
+          <button className="secondary-button" type="button" onClick={reload}>
+            刷新演示
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -2391,17 +2461,19 @@ function App() {
     <div className="app-shell">
       <TopNav currentPath={currentPath} />
       <main>
-        {showDemoStatusHub ? (
-          <DemoStatusHub
-            currentPath={currentPath}
-            demoState={demoState}
-            onDemoStateChange={onDemoStateChange}
-            onDemoStateReset={resetDemoState}
-            selectedCase={selectedCase}
-            storageStatus={storageStatus}
-          />
-        ) : null}
-        {page}
+        <DemoErrorBoundary resetKey={`${currentPath}:${selectedCase.id}`}>
+          {showDemoStatusHub ? (
+            <DemoStatusHub
+              currentPath={currentPath}
+              demoState={demoState}
+              onDemoStateChange={onDemoStateChange}
+              onDemoStateReset={resetDemoState}
+              selectedCase={selectedCase}
+              storageStatus={storageStatus}
+            />
+          ) : null}
+          {page}
+        </DemoErrorBoundary>
       </main>
       <footer className="site-footer">
         <div>
