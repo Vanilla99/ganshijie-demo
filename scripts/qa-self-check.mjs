@@ -21,6 +21,7 @@ const files = {
   readme: readProjectFile("README.md"),
   visualQa: readProjectFile("docs/visual-qa-playbook.md"),
   repoSync: readProjectFile("scripts/github-sync-status.mjs"),
+  goalAudit: readProjectFile("scripts/goal-completion-audit.mjs"),
   packageJson: readProjectFile("package.json")
 };
 
@@ -115,13 +116,19 @@ const requiredChecks = [
     area: "Scripts",
     label: "Package exposes build and QA self-check commands",
     file: files.packageJson,
-    needles: ['"build"', '"qa:self-check"', '"repo:sync-status"']
+    needles: ['"build"', '"goal:completion-audit"', '"qa:self-check"', '"repo:sync-status"']
   },
   {
     area: "Repo sync",
     label: "GitHub API sync status can be verified against remote tree and key files",
     file: files.repoSync,
-    needles: ["Ganshijie GitHub sync status", "remoteTree", "keyFiles", "Tree match", "contents"]
+    needles: ["Ganshijie GitHub sync status", "remoteTree", "keyFiles", "Tree match", "contents", "scripts/goal-completion-audit.mjs"]
+  },
+  {
+    area: "Completion audit",
+    label: "Goal completion status can distinguish proven items from pending browser evidence",
+    file: files.goalAudit,
+    needles: ["Ganshijie goal completion audit", "Browser desktop/mobile QA", "Three.js canvas visual QA", "pending"]
   }
 ];
 

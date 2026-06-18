@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
+    "goal:completion-audit": "node scripts/goal-completion-audit.mjs",
     "qa:self-check": "node scripts/qa-self-check.mjs",
     "repo:sync-status": "node scripts/github-sync-status.mjs",
     "preview": "vite preview --host 127.0.0.1"

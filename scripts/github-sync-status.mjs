@@ -13,6 +13,7 @@ const keyFiles = [
   "docs/visual-qa-playbook.md",
   "scripts/qa-self-check.mjs",
   "scripts/github-sync-status.mjs",
+  "scripts/goal-completion-audit.mjs",
   "src/App.tsx",
   "src/styles.css"
 ];

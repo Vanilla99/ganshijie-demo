@@ -54,6 +54,12 @@ pnpm qa:self-check
 
 该命令会静态检查统一演示状态、病例工作台、影像留痕、报告联动、试点验收、交付简报、响应式样式、Three.js 入口和 GitHub API 同步说明等关键标记是否仍然存在。它适合作为提交前的快速回归门禁。
 
+```bash
+pnpm goal:completion-audit
+```
+
+该命令会按 goal 维度输出已具备证据的能力与仍待证明的项目。若浏览器桌面 / 移动端 QA 或 Three.js 画布可视检查尚未通过真实浏览器归档，它会以非零退出码结束，避免误判为已完成。
+
 该命令不会替代真实浏览器 QA：桌面 / 移动端视觉检查、交互细节和 Three.js 画布像素验证仍需要在可访问 `127.0.0.1:5173` 的浏览器环境中复验。
 
 `/pilot` 页面内置 `Visual QA Gate` 验收看板，可在真实浏览器检查完成后签收桌面、移动端、3D 画布、控制台和端到端路径状态，并记录证据标签、备注、签收时间，支持复制摘要和归档证据。
@@ -86,6 +92,7 @@ pnpm repo:sync-status
 
 - 已使用 `pnpm build` 做 TypeScript 与 Vite 生产构建验证。
 - 已使用 `pnpm qa:self-check` 做关键工作流与交付证据标记自检。
+- 已补充 `pnpm goal:completion-audit`，用于区分已具备证据的交付项和仍待真实浏览器证明的 QA 项。
 - 已补充 `pnpm repo:sync-status`，用于核对 GitHub API 同步后的远端 tree 与关键文件内容。
 - 已使用 `git diff --check` 做空白与补丁格式检查。
 - 已补充 `docs/visual-qa-playbook.md`，用于完成桌面 / 移动端 / Three.js 画布人工验收。
