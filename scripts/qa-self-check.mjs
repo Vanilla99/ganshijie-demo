@@ -20,6 +20,7 @@ const files = {
   scene: readProjectFile("src/components/MedicalScene.tsx"),
   readme: readProjectFile("README.md"),
   visualQa: readProjectFile("docs/visual-qa-playbook.md"),
+  visualQaEvidence: readProjectFile("docs/visual-qa-evidence.md"),
   repoSync: readProjectFile("scripts/github-sync-status.mjs"),
   goalAudit: readProjectFile("scripts/goal-completion-audit.mjs"),
   packageJson: readProjectFile("package.json")
@@ -113,6 +114,12 @@ const requiredChecks = [
     needles: ["桌面：`1440 x 960`", "移动：`390 x 844`", "3D 画布验收", "Three.js", "端到端演示路径", "应用内验收看板", "证据标签", "归档证据"]
   },
   {
+    area: "QA evidence",
+    label: "User Visual QA sign-off and archive evidence are recorded",
+    file: files.visualQaEvidence,
+    needles: ["2026-06-18-user-visual-pass", "desktop-1440x960", "mobile-390x844", "threejs-canvas", "console-clean", "demo-path", "archived"]
+  },
+  {
     area: "Scripts",
     label: "Package exposes build and QA self-check commands",
     file: files.packageJson,
@@ -122,26 +129,17 @@ const requiredChecks = [
     area: "Repo sync",
     label: "GitHub API sync status can be verified against remote tree and key files",
     file: files.repoSync,
-    needles: ["Ganshijie GitHub sync status", "remoteTree", "keyFiles", "Tree match", "contents", "scripts/goal-completion-audit.mjs"]
+    needles: ["Ganshijie GitHub sync status", "remoteTree", "keyFiles", "Tree match", "contents", "docs/visual-qa-evidence.md", "scripts/goal-completion-audit.mjs"]
   },
   {
     area: "Completion audit",
     label: "Goal completion status can distinguish proven items from pending browser evidence",
     file: files.goalAudit,
-    needles: ["Ganshijie goal completion audit", "Browser desktop/mobile QA", "Three.js canvas visual QA", "pending"]
+    needles: ["Ganshijie goal completion audit", "Browser desktop/mobile QA", "Three.js canvas visual QA", "browserVisualQaAccepted", "canvasVisualQaAccepted"]
   }
 ];
 
-const advisoryChecks = [
-  {
-    area: "Browser QA",
-    label: "Desktop and mobile browser QA still require an accessible local browser session"
-  },
-  {
-    area: "Canvas QA",
-    label: "3D canvas pixel verification still requires rendered browser evidence"
-  }
-];
+const advisoryChecks = [];
 
 const results = requiredChecks.map((check) => ({
   ...check,

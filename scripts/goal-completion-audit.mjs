@@ -24,9 +24,13 @@ const files = {
   packageJson: readProjectFile("package.json"),
   readme: readProjectFile("README.md"),
   visualQa: readProjectFile("docs/visual-qa-playbook.md"),
+  visualQaEvidence: readProjectFile("docs/visual-qa-evidence.md"),
   selfCheck: readProjectFile("scripts/qa-self-check.mjs"),
   syncStatus: readProjectFile("scripts/github-sync-status.mjs")
 };
+
+const browserVisualQaAccepted = includesAll(files.visualQaEvidence, ["Visual QA Gate", "desktop-1440x960", "mobile-390x844", "archived"]);
+const canvasVisualQaAccepted = includesAll(files.visualQaEvidence, ["Visual QA Gate", "threejs-canvas", "archived"]);
 
 const audits = [
   {
@@ -71,13 +75,13 @@ const audits = [
   },
   {
     area: "Browser desktop/mobile QA",
-    evidence: "Requires real browser screenshots and Visual QA Gate sign-off",
-    status: "pending"
+    evidence: "User-confirmed Visual QA Gate sign-off and archived desktop/mobile evidence",
+    status: browserVisualQaAccepted ? "pass" : "pending"
   },
   {
     area: "Three.js canvas visual QA",
-    evidence: "Requires rendered canvas screenshot/pixel evidence and Visual QA Gate archive",
-    status: "pending"
+    evidence: "User-confirmed Visual QA Gate sign-off and archived 3D canvas evidence",
+    status: canvasVisualQaAccepted ? "pass" : "pending"
   }
 ];
 
@@ -103,6 +107,8 @@ console.log(`Summary: ${counts.pass} pass, ${counts.fail} fail, ${counts.pending
 
 if (counts.pending > 0) {
   console.log("Completion remains unproven until browser desktop/mobile QA and Three.js canvas visual QA are captured and archived through /pilot Visual QA Gate.");
+} else {
+  console.log("Completion evidence is recorded for browser desktop/mobile QA and Three.js canvas visual QA.");
 }
 
 if (counts.fail > 0 || counts.pending > 0) {

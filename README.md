@@ -70,6 +70,12 @@ pnpm goal:completion-audit
 docs/visual-qa-playbook.md
 ```
 
+本次用户签收归档记录见：
+
+```text
+docs/visual-qa-evidence.md
+```
+
 ## 代码管理
 
 公开仓库：
@@ -96,7 +102,7 @@ pnpm repo:sync-status
 - 已补充 `pnpm repo:sync-status`，用于核对 GitHub API 同步后的远端 tree 与关键文件内容。
 - 已使用 `git diff --check` 做空白与补丁格式检查。
 - 已补充 `docs/visual-qa-playbook.md`，用于完成桌面 / 移动端 / Three.js 画布人工验收。
-- 浏览器桌面 / 移动端 QA 与 Three.js 画布视觉检查需要可访问 `127.0.0.1:5173` 的浏览器环境；若当前执行环境拦截本地浏览器访问，需要在允许本地预览的环境中补验。
+- 已记录 `docs/visual-qa-evidence.md`，用户于 2026-06-18 确认 `/pilot` 的 Visual QA Gate 已签收归档，覆盖浏览器桌面 / 移动端 QA 与 Three.js 画布视觉检查。
 
 ## 说明
 

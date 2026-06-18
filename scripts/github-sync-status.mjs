@@ -11,6 +11,7 @@ const keyFiles = [
   "package.json",
   "README.md",
   "docs/visual-qa-playbook.md",
+  "docs/visual-qa-evidence.md",
   "scripts/qa-self-check.mjs",
   "scripts/github-sync-status.mjs",
   "scripts/goal-completion-audit.mjs",
