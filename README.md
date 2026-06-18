@@ -55,6 +55,12 @@ pnpm qa:self-check
 
 该命令不会替代真实浏览器 QA：桌面 / 移动端视觉检查、交互细节和 Three.js 画布像素验证仍需要在可访问 `127.0.0.1:5173` 的浏览器环境中复验。
 
+浏览器视觉验收步骤见：
+
+```text
+docs/visual-qa-playbook.md
+```
+
 ## 代码管理
 
 公开仓库：
@@ -79,6 +85,7 @@ git rev-parse HEAD^{tree}
 - 已使用 `pnpm build` 做 TypeScript 与 Vite 生产构建验证。
 - 已使用 `pnpm qa:self-check` 做关键工作流与交付证据标记自检。
 - 已使用 `git diff --check` 做空白与补丁格式检查。
+- 已补充 `docs/visual-qa-playbook.md`，用于完成桌面 / 移动端 / Three.js 画布人工验收。
 - 浏览器桌面 / 移动端 QA 与 Three.js 画布视觉检查需要可访问 `127.0.0.1:5173` 的浏览器环境；若当前执行环境拦截本地浏览器访问，需要在允许本地预览的环境中补验。
 
 ## 说明

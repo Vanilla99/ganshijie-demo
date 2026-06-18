@@ -19,6 +19,7 @@ const files = {
   styles: readProjectFile("src/styles.css"),
   scene: readProjectFile("src/components/MedicalScene.tsx"),
   readme: readProjectFile("README.md"),
+  visualQa: readProjectFile("docs/visual-qa-playbook.md"),
   packageJson: readProjectFile("package.json")
 };
 
@@ -90,6 +91,12 @@ const requiredChecks = [
     label: "README documents GitHub API sync and browser QA limits",
     file: files.readme,
     needles: ["GitHub API", "main...origin/main", "浏览器桌面 / 移动端 QA"]
+  },
+  {
+    area: "QA",
+    label: "Visual QA playbook covers desktop, mobile, and 3D canvas acceptance",
+    file: files.visualQa,
+    needles: ["桌面：`1440 x 960`", "移动：`390 x 844`", "3D 画布验收", "Three.js", "端到端演示路径"]
   },
   {
     area: "Scripts",
