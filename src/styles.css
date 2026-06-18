@@ -4442,6 +4442,33 @@ main {
   justify-content: flex-end;
 }
 
+.visual-qa-history {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.visual-qa-history > div strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.visual-qa-history > span {
+  display: block;
+  padding: 9px 11px;
+  color: #475569;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
 .pilot-acceptance-board {
   display: grid;
   gap: 12px;

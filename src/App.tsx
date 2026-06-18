@@ -193,6 +193,7 @@ type DemoState = {
   pilotAcceptanceChecks: Record<string, boolean>;
   visualQaChecks: Record<string, boolean>;
   visualQaEvidence: Record<string, VisualQaEvidence>;
+  visualQaHistory: string[];
   handoffHistory: string[];
   imagingEvidence: Record<string, ImagingEvidence>;
   lastAction: string;
@@ -247,6 +248,7 @@ function createDefaultDemoState(): DemoState {
     pilotAcceptanceChecks: {},
     visualQaChecks: {},
     visualQaEvidence: {},
+    visualQaHistory: [],
     handoffHistory: [],
     imagingEvidence: {},
     lastAction: "已载入默认试点沙盒配置。"
@@ -262,6 +264,7 @@ function mergeDemoState(value: Partial<DemoState>): DemoState {
     exportHistory: Array.isArray(value.exportHistory) ? value.exportHistory : fallback.exportHistory,
     pilotSubmissionTrail: Array.isArray(value.pilotSubmissionTrail) ? value.pilotSubmissionTrail : fallback.pilotSubmissionTrail,
     handoffHistory: Array.isArray(value.handoffHistory) ? value.handoffHistory : fallback.handoffHistory,
+    visualQaHistory: Array.isArray(value.visualQaHistory) ? value.visualQaHistory : fallback.visualQaHistory,
     pilotAcceptanceChecks: { ...fallback.pilotAcceptanceChecks, ...(value.pilotAcceptanceChecks || {}) },
     visualQaChecks: { ...fallback.visualQaChecks, ...(value.visualQaChecks || {}) },
     visualQaEvidence: { ...fallback.visualQaEvidence, ...(value.visualQaEvidence || {}) },
@@ -2771,6 +2774,17 @@ function PilotVisualQaBoard({
   const visualQaScore = Math.round((checkedItems.length / visualQaItems.length) * 100);
   const nextItem = visualQaItems.find((item) => !demoState.visualQaChecks[item.id]);
   const evidenceItems = visualQaItems.filter((item) => demoState.visualQaEvidence[item.id]?.evidence.trim() || demoState.visualQaEvidence[item.id]?.note.trim());
+  const visualQaSummaryLines = [
+    "肝视界视觉 QA 证据摘要",
+    `单位：${demoState.pilotOrganization} / ${demoState.pilotDepartment}`,
+    `签收进度：${checkedItems.length}/${visualQaItems.length}，证据记录 ${evidenceItems.length}/${visualQaItems.length}`,
+    ...visualQaItems.map((item) => {
+      const evidence = demoState.visualQaEvidence[item.id] || { evidence: "", note: "", signedAt: "" };
+      const status = demoState.visualQaChecks[item.id] ? "已签收" : "待签收";
+      return `${item.label}：${status} · 证据 ${evidence.evidence || "未填写"} · ${evidence.note || "无备注"} · ${evidence.signedAt || "未签收"}`;
+    })
+  ];
+  const visualQaSummaryText = visualQaSummaryLines.join("\n");
 
   const toggleVisualQa = (itemId: string, label: string) => {
     onDemoStateChange((state) => {
@@ -2831,6 +2845,26 @@ function PilotVisualQaBoard({
       lastAction: "已清空视觉 QA 签收状态，准备重新验收。",
       visualQaChecks: {},
       visualQaEvidence: {}
+    }));
+  };
+
+  const copyVisualQaSummary = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(visualQaSummaryText);
+      onDemoStateChange((state) => ({ ...state, lastAction: "已复制视觉 QA 证据摘要。" }));
+    } catch {
+      onDemoStateChange((state) => ({ ...state, lastAction: "浏览器阻止复制视觉 QA 摘要，可直接查看页面证据记录。" }));
+    }
+  };
+
+  const archiveVisualQaSummary = () => {
+    const stamped = `${new Date().toLocaleString("zh-CN", { hour12: false })} · 视觉 QA 证据 · 签收 ${checkedItems.length}/${visualQaItems.length} · 证据 ${evidenceItems.length}/${visualQaItems.length}`;
+    onDemoStateChange((state) => ({
+      ...state,
+      exportHistory: [`${stamped} · QA 摘要`, ...state.exportHistory].slice(0, 5),
+      visualQaHistory: [stamped, ...state.visualQaHistory].slice(0, 5),
+      lastAction: "已归档视觉 QA 证据摘要，并加入导出留痕。"
     }));
   };
 
@@ -2911,6 +2945,10 @@ function PilotVisualQaBoard({
           <FileText size={16} />
           查看手册
         </a>
+        <button className="secondary-button icon-text" type="button" onClick={copyVisualQaSummary}>
+          <FileDown size={16} />
+          复制摘要
+        </button>
         <button className="secondary-button icon-text" type="button" onClick={resetVisualQa}>
           <RefreshCw size={16} />
           重新验收
@@ -2919,6 +2957,22 @@ function PilotVisualQaBoard({
           <ShieldCheck size={16} />
           全部签收
         </button>
+        <button className="primary-button icon-text" type="button" onClick={archiveVisualQaSummary}>
+          <Download size={16} />
+          归档证据
+        </button>
+      </div>
+
+      <div className="visual-qa-history">
+        <div>
+          <span className="eyebrow">QA Evidence Trail</span>
+          <strong>视觉验收归档</strong>
+        </div>
+        {demoState.visualQaHistory.length ? (
+          demoState.visualQaHistory.map((item) => <span key={item}>{item}</span>)
+        ) : (
+          <span>尚未归档视觉 QA 证据，完成真实浏览器验收后可生成摘要留痕。</span>
+        )}
       </div>
     </section>
   );
@@ -2954,6 +3008,7 @@ function PilotHandoffBriefing({
     .filter(({ evidence }) => evidence?.evidence.trim() || evidence?.note.trim())
     .slice(0, 3)
     .map(({ item, evidence }) => `${item.label}：${evidence?.evidence || evidence?.note}`);
+  const latestVisualQaArchive = demoState.visualQaHistory[0] || "等待视觉 QA 证据摘要归档";
   const briefingLines = [
     "肝视界试点交付简报",
     `单位：${demoState.pilotOrganization} / ${demoState.pilotDepartment}`,
@@ -2964,6 +3019,7 @@ function PilotHandoffBriefing({
     `报告证据：${reviewedCases.length} 条复核意见，${demoState.exportHistory.length} 条导出/材料记录`,
     `视觉验收：${checkedVisualQaItems}/${visualQaItems.length} 项已签收，${visualQaEvidenceCount} 项有证据记录`,
     `视觉证据：${visualQaEvidenceLines.length ? visualQaEvidenceLines.join("；") : "等待截图、录屏或控制台结论归档"}`,
+    `视觉归档：${latestVisualQaArchive}`,
     `材料状态：${checkedMaterials}/${materialItems.length} 已确认，验收进度 ${acceptanceScore}%`,
     `下一步：${missingAcceptance[0]?.label || "进入交付复盘"}`
   ];
@@ -2972,7 +3028,7 @@ function PilotHandoffBriefing({
     { label: "病例证据", value: `${selectedPilotCases.length} 例`, detail: `${leadCase.id} · ${leadCase.lesion}` },
     { label: "影像留痕", value: `${completedImagingCases.length} 例`, detail: demoState.imagingEvidence[leadCase.id]?.lastEvent || "等待首例 AI 分析完成" },
     { label: "报告材料", value: `${demoState.exportHistory.length} 条`, detail: `${reviewedCases.length} 条复核意见` },
-    { label: "视觉 QA", value: `${checkedVisualQaItems}/${visualQaItems.length}`, detail: `${visualQaEvidenceCount} 项证据记录` },
+    { label: "视觉 QA", value: `${checkedVisualQaItems}/${visualQaItems.length}`, detail: demoState.visualQaHistory[0] || `${visualQaEvidenceCount} 项证据记录` },
     { label: "验收进度", value: `${acceptanceScore}%`, detail: `${doneAcceptanceCount}/${acceptanceItems.length} 项已检查` }
   ];
 
@@ -3183,6 +3239,7 @@ function PilotPage({
       pilotAcceptanceChecks: defaults.pilotAcceptanceChecks,
       visualQaChecks: defaults.visualQaChecks,
       visualQaEvidence: defaults.visualQaEvidence,
+      visualQaHistory: defaults.visualQaHistory,
       handoffHistory: defaults.handoffHistory,
       lastAction: "已恢复默认试点沙盒配置。"
     }));
