@@ -2030,6 +2030,101 @@ function ImagingPage({
   );
 }
 
+function ReportTaskSyncPanel({
+  demoState,
+  onDemoStateChange,
+  onExport,
+  selectedCase
+}: {
+  demoState: DemoState;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+  onExport: (message: string) => void;
+  selectedCase: ClinicalCase;
+}) {
+  const inPilotPackage = demoState.selectedPilotCaseIds.includes(selectedCase.id);
+  const imagingEvidence = demoState.imagingEvidence[selectedCase.id];
+  const hasReviewNote = Boolean(demoState.reviewNotes[selectedCase.id]?.trim());
+  const hasExportTrail = demoState.exportHistory.some((item) => item.includes(selectedCase.reportId) || item.includes(selectedCase.id));
+  const syncItems = [
+    { label: "病例入包", done: inPilotPackage, detail: inPilotPackage ? "已进入试点病例包" : "加入后进入交付简报" },
+    { label: "影像留痕", done: imagingEvidence?.status === "completed", detail: imagingEvidence?.lastEvent || "等待影像中心完成 AI 分析" },
+    { label: "医生复核", done: hasReviewNote, detail: hasReviewNote ? "已保存当前病例复核意见" : "可一键生成初始复核意见" },
+    { label: "材料导出", done: hasExportTrail, detail: hasExportTrail ? "已形成报告/MDT 留痕" : "导出后推动任务队列" }
+  ];
+  const completedCount = syncItems.filter((item) => item.done).length;
+  const syncScore = Math.round((completedCount / syncItems.length) * 100);
+
+  const addToPilotPackage = () => {
+    onDemoStateChange((state) => ({
+      ...state,
+      activeCaseId: selectedCase.id,
+      selectedPilotCaseIds: state.selectedPilotCaseIds.includes(selectedCase.id) ? state.selectedPilotCaseIds : [...state.selectedPilotCaseIds, selectedCase.id],
+      lastAction: `${selectedCase.id} 已从报告页加入试点病例包。`
+    }));
+  };
+
+  const completeReviewNote = () => {
+    const defaultNote = `${selectedCase.id} ${selectedCase.lesion}已完成报告复核。建议 MDT 会前重点查看${selectedCase.measurements[0]?.label || "关键测量"} ${selectedCase.measurements[0]?.value || ""}，并结合${selectedCase.risk}分层确认后续试点演示口径。`;
+    onDemoStateChange((state) => ({
+      ...state,
+      activeCaseId: selectedCase.id,
+      reviewNotes: { ...state.reviewNotes, [selectedCase.id]: state.reviewNotes[selectedCase.id]?.trim() || defaultNote },
+      lastAction: `${selectedCase.id} 已生成医生复核意见并同步任务队列。`
+    }));
+  };
+
+  const exportMdtPack = () => {
+    onExport(`${selectedCase.reportId} 已生成 MDT 会前材料并同步试点任务队列。`);
+  };
+
+  return (
+    <section className="report-task-sync-panel" aria-label="报告试点任务联动">
+      <div className="report-task-sync-head">
+        <div>
+          <span className="eyebrow">Pilot Evidence</span>
+          <strong>报告试点任务联动</strong>
+          <small>把当前报告复核、导出和病例包状态同步到试点任务队列。</small>
+        </div>
+        <div className="report-sync-score" style={{ "--report-sync-score": `${syncScore}%` } as CSSProperties}>
+          <strong>{completedCount}/{syncItems.length}</strong>
+          <span>Evidence</span>
+        </div>
+      </div>
+
+      <div className="report-sync-grid">
+        {syncItems.map((item) => (
+          <article className={item.done ? "done" : ""} key={item.label}>
+            {item.done ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}
+            <div>
+              <strong>{item.label}</strong>
+              <small>{item.detail}</small>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="report-sync-actions">
+        <button className="secondary-button icon-text" type="button" onClick={addToPilotPackage}>
+          <Plus size={16} />
+          {inPilotPackage ? "已入试点包" : "加入试点包"}
+        </button>
+        <button className="secondary-button icon-text" type="button" onClick={completeReviewNote}>
+          <Stethoscope size={16} />
+          {hasReviewNote ? "复核已保存" : "生成复核意见"}
+        </button>
+        <button className="primary-button icon-text" type="button" onClick={exportMdtPack}>
+          <FileDown size={16} />
+          生成 MDT 材料
+        </button>
+        <a className="secondary-button icon-text" href="#/dashboard">
+          <PanelTop size={16} />
+          回到任务队列
+        </a>
+      </div>
+    </section>
+  );
+}
+
 function ReportsPage({
   demoState,
   generated,
@@ -2188,6 +2283,13 @@ function ReportsPage({
           ))}
         </div>
       </section>
+
+      <ReportTaskSyncPanel
+        demoState={demoState}
+        onDemoStateChange={onDemoStateChange}
+        onExport={handleExport}
+        selectedCase={selectedCase}
+      />
 
       <section className="report-template-panel">
         <div className="report-template-head">
