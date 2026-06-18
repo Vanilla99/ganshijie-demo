@@ -137,6 +137,13 @@ const manualAcceptanceItems = [
   { id: "mdtBriefing", label: "MDT 演示排期", detail: "确认会前材料包、参会角色和演示时间" },
   { id: "handoffReview", label: "交付复盘", detail: "确认首例闭环指标、反馈记录和下一步扩展路径" }
 ] as const;
+const visualQaItems = [
+  { id: "desktopRoutes", label: "桌面路由", detail: "1440 x 960 检查首页、驾驶舱、影像、报告、合作和试点页" },
+  { id: "mobileRoutes", label: "移动路由", detail: "390 x 844 检查导航、卡片层级、按钮文字和无横向滚动" },
+  { id: "canvasEvidence", label: "3D 画布", detail: "确认 Three.js 肝脏、病灶、血管可见，并能旋转缩放" },
+  { id: "consoleClean", label: "控制台", detail: "桌面与移动验收期间无红色运行时错误" },
+  { id: "demoPath", label: "闭环路径", detail: "完成驾驶舱、影像、报告、试点三条端到端演示路径" }
+] as const;
 
 type ImagingEvidence = {
   status: "idle" | "running" | "completed";
@@ -178,6 +185,7 @@ type DemoState = {
   pilotRemark: string;
   pilotSubmissionTrail: string[];
   pilotAcceptanceChecks: Record<string, boolean>;
+  visualQaChecks: Record<string, boolean>;
   handoffHistory: string[];
   imagingEvidence: Record<string, ImagingEvidence>;
   lastAction: string;
@@ -230,6 +238,7 @@ function createDefaultDemoState(): DemoState {
     pilotRemark: "优先使用脱敏病例包完成 7 天首例闭环演示。",
     pilotSubmissionTrail: [],
     pilotAcceptanceChecks: {},
+    visualQaChecks: {},
     handoffHistory: [],
     imagingEvidence: {},
     lastAction: "已载入默认试点沙盒配置。"
@@ -246,6 +255,7 @@ function mergeDemoState(value: Partial<DemoState>): DemoState {
     pilotSubmissionTrail: Array.isArray(value.pilotSubmissionTrail) ? value.pilotSubmissionTrail : fallback.pilotSubmissionTrail,
     handoffHistory: Array.isArray(value.handoffHistory) ? value.handoffHistory : fallback.handoffHistory,
     pilotAcceptanceChecks: { ...fallback.pilotAcceptanceChecks, ...(value.pilotAcceptanceChecks || {}) },
+    visualQaChecks: { ...fallback.visualQaChecks, ...(value.visualQaChecks || {}) },
     imagingEvidence: { ...fallback.imagingEvidence, ...(value.imagingEvidence || {}) },
     materialChecklist: { ...fallback.materialChecklist, ...(value.materialChecklist || {}) },
     reviewNotes: { ...fallback.reviewNotes, ...(value.reviewNotes || {}) }
@@ -1039,6 +1049,7 @@ function pilotAcceptanceItemsFor(demoState: DemoState) {
   const reviewNoteCount = Object.values(demoState.reviewNotes).filter((value) => value.trim()).length;
   const highPriorityPilotCases = selectedPilotCases.filter((item) => priorityForCase(item).label === "P1").length;
   const completedImagingCases = selectedPilotCases.filter((item) => demoState.imagingEvidence[item.id]?.status === "completed");
+  const checkedVisualQaItems = visualQaItems.filter((item) => demoState.visualQaChecks[item.id]).length;
 
   return [
     {
@@ -1083,6 +1094,13 @@ function pilotAcceptanceItemsFor(demoState: DemoState) {
       done: Boolean(demoState.pilotSubmittedAt),
       mode: "auto"
     },
+    {
+      id: "visualQaReady",
+      label: "视觉验收",
+      detail: `桌面、移动、3D、控制台与闭环路径 ${checkedVisualQaItems}/${visualQaItems.length} 项已签收`,
+      done: checkedVisualQaItems === visualQaItems.length,
+      mode: "auto"
+    },
     ...manualAcceptanceItems.map((item) => ({
       ...item,
       done: Boolean(demoState.pilotAcceptanceChecks[item.id]),
@@ -1107,6 +1125,7 @@ function PilotCommandCenter({
   const completedImagingCases = selectedPilotCases.filter((item) => demoState.imagingEvidence[item.id]?.status === "completed");
   const checkedMaterials = materialItems.filter((item) => demoState.materialChecklist[item]).length;
   const reviewNoteCount = Object.values(demoState.reviewNotes).filter((value) => value.trim()).length;
+  const checkedVisualQaItems = visualQaItems.filter((item) => demoState.visualQaChecks[item.id]).length;
   const highPriorityCases = cases.filter((item) => priorityForCase(item).label === "P1");
   const leadCase = selectedPilotCases.find((item) => priorityForCase(item).label === "P1") || selectedPilotCases[0] || featuredCase;
   const highPriorityInPackage = highPriorityCases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id)).length;
@@ -1118,7 +1137,8 @@ function PilotCommandCenter({
     { label: "病例包", value: `${selectedPilotCases.length} 例`, detail: `${highPriorityInPackage} 例 P1` },
     { label: "影像留痕", value: `${completedImagingCases.length} 例`, detail: "AI 分析完成病例" },
     { label: "材料清单", value: `${checkedMaterials}/${materialItems.length}`, detail: demoState.deploymentPath },
-    { label: "报告复核", value: `${reviewNoteCount} 条`, detail: `${demoState.reportTemplate} · ${demoState.exportFormat}` }
+    { label: "报告复核", value: `${reviewNoteCount} 条`, detail: `${demoState.reportTemplate} · ${demoState.exportFormat}` },
+    { label: "视觉验收", value: `${checkedVisualQaItems}/${visualQaItems.length}`, detail: "桌面 / 移动 / 3D" }
   ];
   const commandTimeline = [
     { label: "病例包", href: "#/dashboard", done: selectedPilotCases.length >= 2, detail: demoState.casePackage },
@@ -1220,6 +1240,14 @@ function PilotCommandCenter({
       detail: `${demoState.handoffHistory.length} 条简报留痕`,
       done: handoffReady,
       actionLabel: "去生成",
+      href: "#/pilot"
+    },
+    {
+      id: "visual-qa",
+      label: "完成视觉验收",
+      detail: `${checkedVisualQaItems}/${visualQaItems.length} 项已签收`,
+      done: checkedVisualQaItems === visualQaItems.length,
+      actionLabel: "看清单",
       href: "#/pilot"
     },
     {
@@ -2717,6 +2745,109 @@ function PartnersPage() {
   );
 }
 
+function PilotVisualQaBoard({
+  demoState,
+  onDemoStateChange
+}: {
+  demoState: DemoState;
+  onDemoStateChange: (update: DemoStateUpdate) => void;
+}) {
+  const checkedItems = visualQaItems.filter((item) => demoState.visualQaChecks[item.id]);
+  const visualQaScore = Math.round((checkedItems.length / visualQaItems.length) * 100);
+  const nextItem = visualQaItems.find((item) => !demoState.visualQaChecks[item.id]);
+
+  const toggleVisualQa = (itemId: string, label: string) => {
+    onDemoStateChange((state) => {
+      const checked = Boolean(state.visualQaChecks[itemId]);
+      return {
+        ...state,
+        lastAction: `${label}${checked ? "已撤销视觉验收" : "已完成视觉验收签收"}。`,
+        visualQaChecks: { ...state.visualQaChecks, [itemId]: !checked }
+      };
+    });
+  };
+
+  const markAllVisualQa = () => {
+    onDemoStateChange((state) => ({
+      ...state,
+      lastAction: "已签收全部视觉 QA 项，等待最终截图或录屏归档。",
+      visualQaChecks: Object.fromEntries(visualQaItems.map((item) => [item.id, true]))
+    }));
+  };
+
+  const resetVisualQa = () => {
+    onDemoStateChange((state) => ({
+      ...state,
+      lastAction: "已清空视觉 QA 签收状态，准备重新验收。",
+      visualQaChecks: {}
+    }));
+  };
+
+  return (
+    <section className="pilot-visual-qa-board" aria-label="视觉 QA 验收看板">
+      <div className="visual-qa-head">
+        <div>
+          <span className="eyebrow">Visual QA Gate</span>
+          <strong>浏览器与三维画布验收</strong>
+          <small>把桌面、移动端、Three.js 画布、控制台和端到端演示路径纳入试点交付签收。</small>
+        </div>
+        <div className="visual-qa-score" style={{ "--visual-qa": `${visualQaScore}%` } as CSSProperties}>
+          <span>{visualQaScore}%</span>
+          <small>QA</small>
+        </div>
+      </div>
+
+      <div className="visual-qa-summary">
+        <article>
+          <span>验收视口</span>
+          <strong>1440 / 390</strong>
+          <small>桌面与移动双断点</small>
+        </article>
+        <article>
+          <span>画布检查</span>
+          <strong>WebGL</strong>
+          <small>非空白、可旋转、可缩放</small>
+        </article>
+        <article>
+          <span>下一项</span>
+          <strong>{nextItem?.label || "全部完成"}</strong>
+          <small>{nextItem?.detail || "可以归档截图与交付记录"}</small>
+        </article>
+      </div>
+
+      <div className="visual-qa-list">
+        {visualQaItems.map((item) => {
+          const done = Boolean(demoState.visualQaChecks[item.id]);
+          return (
+            <button className={done ? "done" : ""} key={item.id} type="button" onClick={() => toggleVisualQa(item.id, item.label)}>
+              {done ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}
+              <span>
+                <strong>{item.label}</strong>
+                <small>{item.detail}</small>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="visual-qa-actions">
+        <a className="secondary-button icon-text" href="https://github.com/Vanilla99/ganshijie-demo/blob/main/docs/visual-qa-playbook.md" target="_blank" rel="noreferrer">
+          <FileText size={16} />
+          查看手册
+        </a>
+        <button className="secondary-button icon-text" type="button" onClick={resetVisualQa}>
+          <RefreshCw size={16} />
+          重新验收
+        </button>
+        <button className="primary-button icon-text" type="button" onClick={markAllVisualQa}>
+          <ShieldCheck size={16} />
+          全部签收
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function PilotHandoffBriefing({
   acceptanceItems,
   acceptanceScore,
@@ -2738,6 +2869,7 @@ function PilotHandoffBriefing({
   const doneAcceptanceCount = acceptanceItems.filter((item) => item.done).length;
   const missingAcceptance = acceptanceItems.filter((item) => !item.done).slice(0, 4);
   const readyAcceptance = acceptanceItems.filter((item) => item.done).slice(0, 4);
+  const checkedVisualQaItems = visualQaItems.filter((item) => demoState.visualQaChecks[item.id]).length;
   const briefingLines = [
     "肝视界试点交付简报",
     `单位：${demoState.pilotOrganization} / ${demoState.pilotDepartment}`,
@@ -2746,6 +2878,7 @@ function PilotHandoffBriefing({
     `病例包：${selectedPilotCases.length} 例，P1 ${selectedPilotCases.filter((item) => priorityForCase(item).label === "P1").length} 例，主病例 ${leadCase.id}`,
     `影像证据：${completedImagingCases.length} 例已完成 AI 分析留痕`,
     `报告证据：${reviewedCases.length} 条复核意见，${demoState.exportHistory.length} 条导出/材料记录`,
+    `视觉验收：${checkedVisualQaItems}/${visualQaItems.length} 项已签收，覆盖桌面、移动端与 3D 画布`,
     `材料状态：${checkedMaterials}/${materialItems.length} 已确认，验收进度 ${acceptanceScore}%`,
     `下一步：${missingAcceptance[0]?.label || "进入交付复盘"}`
   ];
@@ -2754,6 +2887,7 @@ function PilotHandoffBriefing({
     { label: "病例证据", value: `${selectedPilotCases.length} 例`, detail: `${leadCase.id} · ${leadCase.lesion}` },
     { label: "影像留痕", value: `${completedImagingCases.length} 例`, detail: demoState.imagingEvidence[leadCase.id]?.lastEvent || "等待首例 AI 分析完成" },
     { label: "报告材料", value: `${demoState.exportHistory.length} 条`, detail: `${reviewedCases.length} 条复核意见` },
+    { label: "视觉 QA", value: `${checkedVisualQaItems}/${visualQaItems.length}`, detail: "桌面 / 移动 / 3D 画布" },
     { label: "验收进度", value: `${acceptanceScore}%`, detail: `${doneAcceptanceCount}/${acceptanceItems.length} 项已检查` }
   ];
 
@@ -2882,6 +3016,7 @@ function PilotPage({
   const acceptanceItems = pilotAcceptanceItemsFor(demoState);
   const acceptedItems = acceptanceItems.filter((item) => item.done).length;
   const acceptanceScore = Math.round((acceptedItems / acceptanceItems.length) * 100);
+  const checkedVisualQaItems = visualQaItems.filter((item) => demoState.visualQaChecks[item.id]).length;
   const deliveryStatus = submitted
     ? { label: "已提交", tone: "ready", detail: "交付沟通路径已生成，可回到影像或报告中心演示首例闭环。" }
     : missingMaterials.length
@@ -2958,6 +3093,7 @@ function PilotPage({
       pilotRemark: defaults.pilotRemark,
       pilotSubmissionTrail: defaults.pilotSubmissionTrail,
       pilotAcceptanceChecks: defaults.pilotAcceptanceChecks,
+      visualQaChecks: defaults.visualQaChecks,
       handoffHistory: defaults.handoffHistory,
       lastAction: "已恢复默认试点沙盒配置。"
     }));
@@ -3231,6 +3367,7 @@ function PilotPage({
                 { label: "部署路径", value: demoState.deploymentPath, detail: demoState.casePackage },
                 { label: "病例优先级", value: `${highPriorityPilotCases} 例 P1`, detail: `${selectedPilotCases.length} 例进入首批包` },
                 { label: "报告输出", value: demoState.reportTemplate, detail: `${demoState.exportFormat} · ${demoState.reviewTone}` },
+                { label: "视觉验收", value: `${checkedVisualQaItems}/${visualQaItems.length} 项`, detail: "桌面 / 移动 / 3D 画布" },
                 { label: "最近动作", value: demoState.lastAction ? "已同步" : "待操作", detail: demoState.lastAction || "操作后会同步到沙盒状态" }
               ].map((item) => (
                 <article key={item.label}>
@@ -3240,6 +3377,8 @@ function PilotPage({
                 </article>
               ))}
             </div>
+
+            <PilotVisualQaBoard demoState={demoState} onDemoStateChange={onDemoStateChange} />
 
             <div className="pilot-acceptance-board">
               <div className="pilot-acceptance-head">

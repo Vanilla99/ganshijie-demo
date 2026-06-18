@@ -75,6 +75,18 @@ const requiredChecks = [
     needles: ["pilotAcceptanceItemsFor", "PilotHandoffBriefing", "pilot-handoff-briefing", "handoffHistory"]
   },
   {
+    area: "Pilot QA",
+    label: "Pilot visual QA gate persists desktop, mobile, and 3D sign-off state",
+    file: files.app,
+    needles: ["visualQaItems", "visualQaChecks", "PilotVisualQaBoard", "pilot-visual-qa-board", "visualQaReady"]
+  },
+  {
+    area: "Pilot QA styles",
+    label: "Visual QA board has responsive production styling",
+    file: files.styles,
+    needles: [".pilot-visual-qa-board", ".visual-qa-list", ".visual-qa-actions", "--visual-qa", ".visual-qa-summary"]
+  },
+  {
     area: "3D",
     label: "MedicalScene uses React Three Fiber canvas and controls",
     file: files.scene,
@@ -96,7 +108,7 @@ const requiredChecks = [
     area: "QA",
     label: "Visual QA playbook covers desktop, mobile, and 3D canvas acceptance",
     file: files.visualQa,
-    needles: ["桌面：`1440 x 960`", "移动：`390 x 844`", "3D 画布验收", "Three.js", "端到端演示路径"]
+    needles: ["桌面：`1440 x 960`", "移动：`390 x 844`", "3D 画布验收", "Three.js", "端到端演示路径", "应用内验收看板"]
   },
   {
     area: "Scripts",
