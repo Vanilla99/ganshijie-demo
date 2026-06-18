@@ -4281,7 +4281,7 @@ main {
 
 .visual-qa-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -4318,30 +4318,42 @@ main {
   gap: 8px;
 }
 
-.visual-qa-list button {
+.visual-qa-list article {
   display: grid;
   gap: 10px;
   align-content: start;
   min-width: 0;
-  min-height: 154px;
+  min-height: 300px;
   padding: 13px;
-  text-align: left;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 16px;
   background: rgba(248, 250, 252, 0.78);
-  transition:
-    transform 0.2s ease,
-    border 0.2s ease,
-    background 0.2s ease;
 }
 
-.visual-qa-list button:hover {
+.visual-qa-toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease;
+}
+
+.visual-qa-list article:hover .visual-qa-toggle {
   transform: translateY(-1px);
+}
+
+.visual-qa-list article:hover {
   border-color: rgba(14, 165, 233, 0.28);
   background: rgba(255, 255, 255, 0.9);
 }
 
-.visual-qa-list button.done {
+.visual-qa-list article.done {
   border-color: rgba(16, 185, 129, 0.24);
   background: rgba(16, 185, 129, 0.08);
 }
@@ -4350,7 +4362,7 @@ main {
   color: #f59e0b;
 }
 
-.visual-qa-list button.done svg {
+.visual-qa-list article.done svg {
   color: #10b981;
 }
 
@@ -4370,6 +4382,57 @@ main {
   color: #64748b;
   font-size: 12px;
   line-height: 1.48;
+}
+
+.visual-qa-list label {
+  display: grid;
+  gap: 6px;
+  color: #53657a;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.visual-qa-list input,
+.visual-qa-list textarea {
+  width: 100%;
+  color: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.visual-qa-list input {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.visual-qa-list textarea {
+  min-height: 72px;
+  padding: 9px 10px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.visual-qa-list input:focus,
+.visual-qa-list textarea:focus {
+  border-color: rgba(14, 165, 233, 0.68);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.visual-qa-stamp {
+  align-self: end;
+  padding: 8px 9px;
+  color: #475569;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.visual-qa-list article.done .visual-qa-stamp {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
 }
 
 .visual-qa-actions {
