@@ -77,16 +77,16 @@ https://github.com/Vanilla99/ganshijie-demo
 远端同步以 GitHub API 写入 `main` 后的远端 commit/tree 为准。可用以下命令核对：
 
 ```bash
-gh api repos/Vanilla99/ganshijie-demo/commits/main --jq .sha
-git rev-parse HEAD^{tree}
+pnpm repo:sync-status
 ```
 
-如果需要确认远端文件与本地一致，可通过 GitHub contents API 拉取 `src/App.tsx`、`src/styles.css` 等关键文件后与本地 `cmp` 比对。
+该命令会读取 GitHub API 的远端 `main` commit/tree，并逐个比对 `src/App.tsx`、`src/styles.css`、README、QA 手册和本地验证脚本等关键文件。若本地 `git status -sb` 仍显示 `ahead N`，但该命令显示 tree 与关键文件一致，则以 API 核对结果作为远端同步状态依据。
 
 ## 验证状态
 
 - 已使用 `pnpm build` 做 TypeScript 与 Vite 生产构建验证。
 - 已使用 `pnpm qa:self-check` 做关键工作流与交付证据标记自检。
+- 已补充 `pnpm repo:sync-status`，用于核对 GitHub API 同步后的远端 tree 与关键文件内容。
 - 已使用 `git diff --check` 做空白与补丁格式检查。
 - 已补充 `docs/visual-qa-playbook.md`，用于完成桌面 / 移动端 / Three.js 画布人工验收。
 - 浏览器桌面 / 移动端 QA 与 Three.js 画布视觉检查需要可访问 `127.0.0.1:5173` 的浏览器环境；若当前执行环境拦截本地浏览器访问，需要在允许本地预览的环境中补验。
