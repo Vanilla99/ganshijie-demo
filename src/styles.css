@@ -1329,6 +1329,132 @@ main {
   color: #10b981;
 }
 
+.command-task-queue {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(14, 165, 233, 0.07), rgba(20, 184, 166, 0.05)),
+    rgba(248, 250, 252, 0.74);
+}
+
+.command-task-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.command-task-head strong,
+.command-task-head small {
+  display: block;
+}
+
+.command-task-head strong {
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.command-task-head small {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  color: #075985;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.1);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.command-task-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.command-task-list article {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 78px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.command-task-list article.done {
+  border-color: rgba(16, 185, 129, 0.22);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.command-task-list article > div {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.command-task-list svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #f59e0b;
+}
+
+.command-task-list article.done svg {
+  color: #10b981;
+}
+
+.command-task-list strong,
+.command-task-list small {
+  display: block;
+}
+
+.command-task-list strong {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.command-task-list small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.command-task-list article > span,
+.command-task-list button,
+.command-task-list a {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
+  color: #075985;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.1);
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.command-task-list article > span {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.command-task-list button {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.command-task-list button:hover,
+.command-task-list a:hover {
+  background: rgba(14, 165, 233, 0.16);
+}
+
 .command-action-row {
   display: flex;
   flex-wrap: wrap;
@@ -4611,6 +4737,7 @@ main {
 
   .workstation-status-grid,
   .command-signal-grid,
+  .command-task-list,
   .imaging-evidence-grid,
   .handoff-evidence-grid,
   .pipeline-status-grid,
@@ -4723,6 +4850,7 @@ main {
   .hub-signal-grid,
   .command-signal-grid,
   .command-timeline,
+  .command-task-list,
   .handoff-evidence-grid,
   .workbench-controls,
   .workbench-signal-grid,
@@ -4850,6 +4978,11 @@ main {
     display: grid;
     grid-template-columns: 1fr;
     justify-content: stretch;
+  }
+
+  .command-task-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .command-action-row .primary-button,

@@ -1109,9 +1109,13 @@ function PilotCommandCenter({
   const reviewNoteCount = Object.values(demoState.reviewNotes).filter((value) => value.trim()).length;
   const highPriorityCases = cases.filter((item) => priorityForCase(item).label === "P1");
   const leadCase = selectedPilotCases.find((item) => priorityForCase(item).label === "P1") || selectedPilotCases[0] || featuredCase;
+  const highPriorityInPackage = highPriorityCases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id)).length;
+  const materialComplete = checkedMaterials === materialItems.length;
+  const manualRemaining = manualAcceptanceItems.filter((item) => !demoState.pilotAcceptanceChecks[item.id]).length;
+  const handoffReady = demoState.handoffHistory.length > 0;
   const missingItems = acceptanceItems.filter((item) => !item.done).slice(0, 4);
   const readinessSignals = [
-    { label: "病例包", value: `${selectedPilotCases.length} 例`, detail: `${highPriorityCases.filter((item) => demoState.selectedPilotCaseIds.includes(item.id)).length} 例 P1` },
+    { label: "病例包", value: `${selectedPilotCases.length} 例`, detail: `${highPriorityInPackage} 例 P1` },
     { label: "影像留痕", value: `${completedImagingCases.length} 例`, detail: "AI 分析完成病例" },
     { label: "材料清单", value: `${checkedMaterials}/${materialItems.length}`, detail: demoState.deploymentPath },
     { label: "报告复核", value: `${reviewNoteCount} 条`, detail: `${demoState.reportTemplate} · ${demoState.exportFormat}` }
@@ -1146,6 +1150,87 @@ function PilotCommandCenter({
       lastAction: "已聚焦试点交付缺口，准备补齐演示闭环。"
     }));
   };
+
+  const confirmAllMaterials = () => {
+    onDemoStateChange((state) => ({
+      ...state,
+      materialChecklist: Object.fromEntries(materialItems.map((item) => [item, true])),
+      lastAction: "已为演示任务队列确认全部试点材料。"
+    }));
+  };
+
+  const markManualAcceptance = () => {
+    onDemoStateChange((state) => {
+      const nextChecks = { ...state.pilotAcceptanceChecks };
+      manualAcceptanceItems.forEach((item) => {
+        nextChecks[item.id] = true;
+      });
+      return {
+        ...state,
+        pilotAcceptanceChecks: nextChecks,
+        lastAction: "已标记全部人工验收任务。"
+      };
+    });
+  };
+
+  const taskQueue: Array<{
+    id: string;
+    label: string;
+    detail: string;
+    done: boolean;
+    actionLabel: string;
+    href?: string;
+    onRun?: () => void;
+  }> = [
+    {
+      id: "case-package",
+      label: "锁定 P1 病例包",
+      detail: `${selectedPilotCases.length} 例已入包，${highPriorityInPackage} 例 P1`,
+      done: selectedPilotCases.length >= 2 && highPriorityInPackage > 0,
+      actionLabel: "一键锁定",
+      onRun: focusHighRiskPackage
+    },
+    {
+      id: "imaging-evidence",
+      label: "完成影像演示",
+      detail: `${completedImagingCases.length}/${selectedPilotCases.length || 0} 例有 AI 留痕`,
+      done: completedImagingCases.length > 0,
+      actionLabel: "去影像",
+      href: caseHref("/imaging", leadCase)
+    },
+    {
+      id: "materials",
+      label: "确认试点材料",
+      detail: `材料清单 ${checkedMaterials}/${materialItems.length}`,
+      done: materialComplete,
+      actionLabel: "全部确认",
+      onRun: confirmAllMaterials
+    },
+    {
+      id: "report-review",
+      label: "补充报告复核",
+      detail: `${reviewNoteCount} 条医生复核意见`,
+      done: reviewNoteCount > 0,
+      actionLabel: "去报告",
+      href: caseHref("/reports", leadCase, "generated=1")
+    },
+    {
+      id: "handoff-pack",
+      label: "生成交付简报",
+      detail: `${demoState.handoffHistory.length} 条简报留痕`,
+      done: handoffReady,
+      actionLabel: "去生成",
+      href: "#/pilot"
+    },
+    {
+      id: "manual-acceptance",
+      label: "人工验收确认",
+      detail: `${manualRemaining} 项待确认`,
+      done: manualRemaining === 0,
+      actionLabel: "全部标记",
+      onRun: markManualAcceptance
+    }
+  ];
 
   return (
     <section className="pilot-command-center" aria-label="试点演示指挥台">
@@ -1236,6 +1321,38 @@ function PilotCommandCenter({
             ))}
           </div>
         </article>
+      </div>
+
+      <div className="command-task-queue">
+        <div className="command-task-head">
+          <div>
+            <span className="eyebrow">Task Queue</span>
+            <strong>演示任务队列</strong>
+          </div>
+          <small>{taskQueue.filter((item) => item.done).length}/{taskQueue.length} 已完成</small>
+        </div>
+        <div className="command-task-list">
+          {taskQueue.map((item) => (
+            <article className={item.done ? "done" : ""} key={item.id}>
+              <div>
+                {item.done ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+              </div>
+              {item.done ? (
+                <span>已完成</span>
+              ) : item.onRun ? (
+                <button type="button" onClick={item.onRun}>
+                  {item.actionLabel}
+                </button>
+              ) : (
+                <a href={item.href}>{item.actionLabel}</a>
+              )}
+            </article>
+          ))}
+        </div>
       </div>
 
       <div className="command-action-row">
